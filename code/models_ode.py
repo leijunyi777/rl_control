@@ -8,7 +8,7 @@ def _signed_safe(value, eps=1e-6):
 
 
 class KinematicBicycleModel:
-    """Vehicle model whose reported point is the front axle, as in merge_car_ode.m."""
+    """自行车车辆模型，控制参考点取前轴中心。"""
 
     def __init__(self, id, x=0.0, y=0.0, theta=0.0, v=0.0, delta=0.0, L=2.5, color="blue"):
         self.id = id
@@ -64,14 +64,14 @@ def rear_state_derivative(state, a, omega, L):
 
 
 class EgoVehicleOdeModel(KinematicBicycleModel):
-    """Controller written as ODE right-hand-side pieces instead of Euler updates."""
+    """ego 车辆模型，包含意见动态、分岔参数动态和安全控制器。"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.z = 0.01
         self.mu = 0.0
 
-        self.r = 0.6
+        self.r = 1.5
         self.rho = np.array([1.0, 0.0])
         self.eta = np.array([0.0, 1.0])
 
@@ -202,7 +202,7 @@ class EgoVehicleOdeModel(KinematicBicycleModel):
 
 
 class Main4OdeDynamics:
-    """main4 scenario integrated as one continuous system."""
+    """将三辆车和决策变量组合成一个连续 ODE 系统。"""
 
     def __init__(self, veh1, veh2, veh3, a_vel=4.0, period=6.0, yield_time=20.0, yield_speed=12.0):
         self.veh1 = veh1

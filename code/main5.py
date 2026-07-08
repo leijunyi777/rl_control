@@ -36,14 +36,17 @@ def main():
     )
 
     dynamics = Main4OdeDynamics(veh1, veh2, veh3)
+    collision_radius = veh3.r
 
     dt = 0.05
     sim_time = 35.0
     steps = int(sim_time / dt)
     state = dynamics.pack_state()
 
-    t_hist, mu_hist, z_hist, d1_hist, d2_hist, ego_y_hist = [], [], [], [], [], []
+    t_hist, mu_hist, z_hist, dist1_hist, dist2_hist, ego_y_hist = [], [], [], [], [], []
     uc_x_hist, uc_y_hist = [], []
+    collided = False
+    collision_message = ""
 
     plt.ion()
     fig = plt.figure(figsize=(14, 8))
@@ -70,25 +73,40 @@ def main():
         state = dynamics.pack_state()
 
         diag = dynamics.diagnostics(state)
+        dist1 = diag["sensor_data"]["veh1"]["dist"]
+        dist2 = diag["sensor_data"]["veh2"]["dist"]
+        min_distance = min(dist1, dist2)
+        if min_distance < collision_radius:
+            collided = True
+            collided_with = "Veh 1" if dist1 <= dist2 else "Veh 2"
+            collision_message = (
+                f"Collision detected at t={t + dt:.2f}s with {collided_with}: "
+                f"distance={min_distance:.3f}m < r={collision_radius:.3f}m"
+            )
+            print(collision_message)
+
         t_hist.append(t + dt)
         mu_hist.append(state[16])
         z_hist.append(state[15])
-        d1_hist.append(diag["d1"])
-        d2_hist.append(diag["d2"])
+        dist1_hist.append(dist1)
+        dist2_hist.append(dist2)
         ego_y_hist.append(veh3.y)
         uc_x_hist.append(diag["u_c"][0])
         uc_y_hist.append(diag["u_c"][1])
 
-        if i % 4 == 0:
+        if i % 4 == 0 or collided:
             ax_anim.cla()
             draw_environment(ax_anim, lane_width)
-            draw_car(ax_anim, veh1)
-            draw_car(ax_anim, veh2)
-            draw_car(ax_anim, veh3)
+            draw_car(ax_anim, veh1, wheelbase=collision_radius)
+            draw_car(ax_anim, veh2, wheelbase=collision_radius)
+            draw_car(ax_anim, veh3, wheelbase=collision_radius)
             ax_anim.set_xlim(veh3.x - 15, veh3.x + 45)
             ax_anim.set_ylim(-2, lane_width * 2 + 2)
             ax_anim.set_aspect("equal")
-            ax_anim.set_title(f"Time: {t + dt:.2f}s | RK45 ODE control with front-axle u_c")
+            title = f"Time: {t + dt:.2f}s | RK45 ODE control"
+            if collided:
+                title += " | COLLISION"
+            ax_anim.set_title(title)
 
             ax_mu_z.cla()
             ax_mu_z.plot(t_hist, mu_hist, "c-", linewidth=2, label="Env Score ($\\mu$)")
@@ -101,16 +119,26 @@ def main():
             ax_mu_z.grid(True)
 
             ax_dist.cla()
-            ax_dist.plot(t_hist, d1_hist, "purple", linewidth=2, label="Safe Dist to Veh 1 ($d_1$)")
-            ax_dist.plot(t_hist, d2_hist, "red", linewidth=2, label="Safe Dist to Veh 2 ($d_2$)")
-            ax_dist.axhline(0, color="black", linestyle="--", linewidth=2, label="Collision Threshold")
+            ax_dist.plot(t_hist, dist1_hist, "purple", linewidth=2, label="Distance to Veh 1")
+            ax_dist.plot(t_hist, dist2_hist, "red", linewidth=2, label="Distance to Veh 2")
+            ax_dist.axhline(
+                collision_radius,
+                color="black",
+                linestyle="--",
+                linewidth=2,
+                label=f"Collision Threshold r={collision_radius:g}m",
+            )
             ax_dist.set_xlim(0, sim_time)
-            ax_dist.set_ylim(-2, 35)
-            ax_dist.set_title("Safety Distance Monitoring ($d_1, d_2$)")
+            upper_distance = max([collision_radius * 2.0, *dist1_hist, *dist2_hist])
+            ax_dist.set_ylim(0, upper_distance * 1.1)
+            ax_dist.set_title("Ego Relative Distance Monitoring")
             ax_dist.legend(loc="upper right")
             ax_dist.grid(True)
 
             plt.pause(0.01)
+
+        if collided:
+            break
 
     plt.ioff()
     plt.show()
