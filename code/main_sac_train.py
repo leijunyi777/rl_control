@@ -8,7 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from scipy.integrate import solve_ivp
 
-from models_ode import KinematicBicycleModel, EgoVehicleOdeModel, Main4OdeDynamics, front_velocity
+from main7 import Main7GapFollowingDynamics, get_veh12_gap
+from models_ode import KinematicBicycleModel, EgoVehicleOdeModel, front_velocity
 from utils import draw_car, draw_environment
 
 
@@ -17,7 +18,7 @@ from utils import draw_car, draw_environment
 # =========================
 NUM_EPISODES = 300
 RENDER_DURING_TRAINING = False
-SIM_TIME = 35.0
+SIM_TIME = 40.0
 DT = 0.05
 SEED = 7
 
@@ -44,8 +45,8 @@ def set_seed(seed):
     torch.manual_seed(seed)
 
 
-class Main5SacMergeEnv:
-    """基于 main5 仿真循环封装的强化学习环境。"""
+class Main7SacMergeEnv:
+    """基于 main7 仿真循环封装的强化学习环境。"""
 
     def __init__(self, render=False, sim_time=SIM_TIME, dt=DT):
         self.render_enabled = render
@@ -55,6 +56,7 @@ class Main5SacMergeEnv:
         self.vehicle_l = 2.8
         self.original_lane_y = self.lane_width * 0.5
         self.target_lane_y = self.lane_width * 1.5
+        self.desired_gap = 20.0
         self.obs_scale = np.array([40.0, 8.0, 20.0, 10.0, 40.0, 8.0, 20.0, 10.0], dtype=np.float32)
         self.fig = None
         self.ax_anim = None
@@ -72,7 +74,7 @@ class Main5SacMergeEnv:
             color="lightblue",
         )
         self.veh2 = KinematicBicycleModel(
-            id="Veh 2 (Aggressive)",
+            id="Veh 2 (Gap Control)",
             x=15.0,
             y=self.target_lane_y,
             v=15.0,
@@ -87,7 +89,7 @@ class Main5SacMergeEnv:
             L=self.vehicle_l,
             color="lightgreen",
         )
-        self.dynamics = Main4OdeDynamics(self.veh1, self.veh2, self.ego)
+        self.dynamics = Main7GapFollowingDynamics(self.veh1, self.veh2, self.ego, desired_gap=self.desired_gap)
         self.collision_radius = self.ego.r
         self.state = self.dynamics.pack_state()
         self.t = 0.0
@@ -95,7 +97,7 @@ class Main5SacMergeEnv:
         self.prev_action = np.zeros(3, dtype=np.float32)
         self.prev_lateral_velocity = front_velocity(self.state[10:15], self.ego.L)[1]
         self.t_hist, self.mu_hist, self.z_hist = [], [], []
-        self.dist1_hist, self.dist2_hist = [], []
+        self.dist1_hist, self.dist2_hist, self.veh12_gap_hist = [], [], []
         return self._get_obs()
 
     def _normalized_action_to_params(self, action):
@@ -131,6 +133,9 @@ class Main5SacMergeEnv:
         diag = self.dynamics.diagnostics(self.state)
         return diag["sensor_data"]["veh1"]["dist"], diag["sensor_data"]["veh2"]["dist"]
 
+    def _veh12_gap(self):
+        return get_veh12_gap(self.state, self.veh1.L, self.veh2.L)
+
     def _is_success(self, lane_progress, min_distance):
         return (
             lane_progress > 0.95
@@ -159,7 +164,9 @@ class Main5SacMergeEnv:
         self.t += self.dt
 
         dist1, dist2 = self._distances()
-        min_distance = min(dist1, dist2)
+        veh12_gap = self._veh12_gap()
+        ego_min_distance = min(dist1, dist2)
+        env_min_distance = min(ego_min_distance, veh12_gap)
         lane_progress = self._lane_progress()
         progress_delta = lane_progress - self.prev_lane_progress
         opportunity = 1.0 if self.state[16] > 0.1 else 0.0
@@ -177,10 +184,10 @@ class Main5SacMergeEnv:
         time_penalty = -0.02 * (1.0 - lane_progress)
         action_smooth_penalty = -0.5 * float(np.sum((action - self.prev_action) ** 2))
         direction_flip_penalty = -2.0 if lateral_direction_flip else 0.0
-        safety_penalty = -20.0 * max(0.0, (safe_margin - min_distance) / safe_margin) ** 2
+        safety_penalty = -20.0 * max(0.0, (safe_margin - ego_min_distance) / safe_margin) ** 2
 
-        collided = min_distance < self.collision_radius
-        success = self._is_success(lane_progress, min_distance)
+        collided = env_min_distance < self.collision_radius
+        success = self._is_success(lane_progress, ego_min_distance)
         collision_penalty = -1000.0 if collided else 0.0
         success_bonus = (100.0 - 2.0 * self.t) if success else 0.0
         reward = (
@@ -205,6 +212,7 @@ class Main5SacMergeEnv:
             "lane_progress": lane_progress,
             "dist1": dist1,
             "dist2": dist2,
+            "veh12_gap": veh12_gap,
             "collided": collided,
             "success": success,
             "time": self.t,
@@ -226,6 +234,7 @@ class Main5SacMergeEnv:
         self.z_hist.append(self.state[15])
         self.dist1_hist.append(dist1)
         self.dist2_hist.append(dist2)
+        self.veh12_gap_hist.append(veh12_gap)
         if self.render_enabled:
             self.render(info)
 
@@ -258,6 +267,7 @@ class Main5SacMergeEnv:
         self.ax_mu_z.plot(self.t_hist, self.mu_hist, "c-", linewidth=2, label="Env Score ($\\mu$)")
         self.ax_mu_z.plot(self.t_hist, self.z_hist, "b-", linewidth=3, label="Opinion State ($z$)")
         self.ax_mu_z.axhline(0, color="gray", linestyle="--")
+        self.ax_mu_z.axvline(20.0, color="black", linestyle=":", linewidth=1.5, label="Gap Control Starts")
         self.ax_mu_z.set_xlim(0, self.sim_time)
         self.ax_mu_z.set_ylim(-1.0, 1.5)
         self.ax_mu_z.set_title("Decision Dynamics ($\\mu$ and $z$)")
@@ -267,6 +277,7 @@ class Main5SacMergeEnv:
         self.ax_dist.cla()
         self.ax_dist.plot(self.t_hist, self.dist1_hist, "purple", linewidth=2, label="Distance to Veh 1")
         self.ax_dist.plot(self.t_hist, self.dist2_hist, "red", linewidth=2, label="Distance to Veh 2")
+        self.ax_dist.plot(self.t_hist, self.veh12_gap_hist, "gray", linestyle="-.", linewidth=2, label="Veh1-Veh2 Gap")
         self.ax_dist.axhline(
             self.collision_radius,
             color="black",
@@ -274,10 +285,18 @@ class Main5SacMergeEnv:
             linewidth=2,
             label=f"Collision Threshold r={self.collision_radius:g}m",
         )
+        self.ax_dist.axhline(self.desired_gap, color="green", linestyle=":", linewidth=2, label="Target Gap 20m")
+        self.ax_dist.axvline(20.0, color="black", linestyle=":", linewidth=1.5)
         self.ax_dist.set_xlim(0, self.sim_time)
-        upper_distance = max([self.collision_radius * 2.0, *self.dist1_hist, *self.dist2_hist])
+        upper_distance = max([
+            self.collision_radius * 2.0,
+            self.desired_gap * 1.2,
+            *self.dist1_hist,
+            *self.dist2_hist,
+            *self.veh12_gap_hist,
+        ])
         self.ax_dist.set_ylim(0, upper_distance * 1.1)
-        self.ax_dist.set_title("Ego Relative Distance Monitoring")
+        self.ax_dist.set_title("Relative Distance Monitoring")
         self.ax_dist.legend(loc="upper right")
         self.ax_dist.grid(True)
         plt.pause(0.001)
@@ -482,7 +501,7 @@ def plot_training_results(episode_rewards, episode_progress, episode_collisions,
 def train():
     set_seed(SEED)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    env = Main5SacMergeEnv(render=RENDER_DURING_TRAINING)
+    env = Main7SacMergeEnv(render=RENDER_DURING_TRAINING)
     state_dim = env.reset().shape[0]
     action_dim = 3
 
