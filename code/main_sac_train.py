@@ -16,7 +16,7 @@ from utils import draw_car, draw_environment
 # =========================
 # 训练与仿真参数
 # =========================
-NUM_EPISODES = 300
+NUM_EPISODES = 50
 RENDER_DURING_TRAINING = False
 SIM_TIME = 40.0
 DT = 0.05
