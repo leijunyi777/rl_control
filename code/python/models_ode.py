@@ -78,7 +78,7 @@ class EgoVehicleOdeModel(KinematicBicycleModel):
         self.k_mu = 5.0
         self.k = 20.0
         self.k_w = 40.0
-        self.eps = 0.05
+        self.eps = 0.1
         self.eps2 = 0.5
 
         self.k_p = 0.7
@@ -125,8 +125,26 @@ class EgoVehicleOdeModel(KinematicBicycleModel):
         tanh_arg = -self.k * np.dot(self.rho, g31) * np.dot(self.rho, g32) * (d21 - 2.0 * self.r) * (phi21 + self.eps2)
         return -self.k_mu * mu + np.tanh(tanh_arg)
 
+    # def compute_z_dot(self, z, mu):
+    #     return (1.0 / self.eps) * (-z * z + mu * z)
+    
     def compute_z_dot(self, z, mu):
-        return (1.0 / self.eps) * (-z * z + mu * z)
+        """计算意见状态 z 的导数 (饱和跨临界意见动力学模型)"""
+        # 推荐将以下参数设为类的动态属性 (e.g., self.d, self.u)，实现可调灵敏度
+        d = 10.0   # 惯性/阻力 (防止意见突变)
+        u = 2.0   # 注意力强度 (打破僵局的驱动力)
+        k = 1.0   # 灵敏度系数 (越大切换越锐利)
+        b = 0.0   # 外部偏置 (导航意图)
+    
+        # 限制 z 的范围，防止 math.tanh 因极端输入溢出 (可选，视工程具体情况而定)
+        z_clip = max(min(z, 50.0), -50.0)
+        mu_clip = max(min(mu, 50.0), -50.0)
+
+        # 核心公式: 饱和非线性动力学
+        opinion_drive = np.tanh(k * (mu_clip + b)) - np.tanh(k * z_clip)
+        z_dot = (1.0 / self.eps) * (-d * z + u * z * opinion_drive)
+    
+        return z_dot
 
     def compute_nominal_control(self, sensor_data, z):
         w = np.tanh(self.k_w * z)

@@ -17,12 +17,12 @@ SIM_TIME = 40.0
 DT = 0.05
 LANE_WIDTH = 4.0
 VEHICLE_L = 2.8
-NUM_TARGET_VEHICLES = 5
+NUM_TARGET_VEHICLES = 4
 TARGET_SPEED = 15.0
-GAP_SWITCH_PERIOD = 4.0
+GAP_SWITCH_PERIOD = 6.0
 MAX_CHANGED_GAPS_PER_PERIOD = 2
-GAP_MULTIPLIERS = np.array([0.8, 1.2, 1.4])
-RANDOM_SEED = 8879
+GAP_MULTIPLIERS = np.array([0.5, 1.0, 1.3])
+RANDOM_SEED = None
 
 EGO_INITIAL_GAP_FACTOR = 2.5
 EGO_RANDOM_POSITION_ENABLED = True
@@ -338,7 +338,7 @@ def build_scene():
     ego_lane_y = LANE_WIDTH * 0.5
 
     temp_ego = EgoVehicleOdeModel(id="ego_template", L=VEHICLE_L)
-    base_gap = max(VEHICLE_L + 1.0, 3.2 * temp_ego.r)
+    base_gap = max(VEHICLE_L + 0.5, 3.2 * temp_ego.r)
     base_x = 38.0
 
     rng = np.random.default_rng(EGO_RANDOM_POSITION_SEED)
