@@ -125,10 +125,10 @@ class EgoVehicleOdeModel(KinematicBicycleModel):
         tanh_arg = -self.k * np.dot(self.rho, g31) * np.dot(self.rho, g32) * (d21 - 2.0 * self.r) * (phi21 + self.eps2)
         return -self.k_mu * mu + np.tanh(tanh_arg)
 
-    # def compute_z_dot(self, z, mu):
-    #     return (1.0 / self.eps) * (-z * z + mu * z)
-    
     def compute_z_dot(self, z, mu):
+        return (1.0 / self.eps) * (-z * z + mu * z)
+
+    def compute_z_dot_new(self, z, mu):
         """计算意见状态 z 的导数 (饱和跨临界意见动力学模型)"""
         # 推荐将以下参数设为类的动态属性 (e.g., self.d, self.u)，实现可调灵敏度
         d = 10.0   # 惯性/阻力 (防止意见突变)
