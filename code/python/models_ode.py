@@ -63,6 +63,51 @@ def rear_state_derivative(state, a, omega, L):
     ])
 
 
+def compute_gap_bias_bt(gap, gap_dot, gap_safe, k_gap=0.25, k_vel=0.45):
+    """Compute the objective merge bias b(t) from target-lane gap signals."""
+    return float(np.tanh(k_gap * (gap - gap_safe) + k_vel * gap_dot))
+
+
+def compute_gap_attention_ut(gap_dot, u_base=0.4, u_gain=0.25):
+    """Compute the subjective urgency u(t), increased only when the gap is closing."""
+    return float(u_base + u_gain * max(0.0, -gap_dot))
+
+
+def compute_gap_opinion_z_dot(z, b_t, u_t, damping=1.0, alpha=2.0):
+    """Compute z_dot = -d*z + u(t)*tanh(alpha*z) + b(t)."""
+    return float(-damping * z + u_t * np.tanh(alpha * z) + b_t)
+
+
+def compute_gap_signals_from_states(
+    front_state,
+    rear_state,
+    front_l,
+    rear_l,
+    gap_safe,
+    k_gap=0.25,
+    k_vel=0.45,
+    u_base=0.4,
+    u_gain=0.25,
+):
+    """Return gap, gap_dot, b(t), and u(t) for the front/rear target-lane pair."""
+    front_pos = front_position(front_state, front_l)
+    rear_pos = front_position(rear_state, rear_l)
+    front_vel = front_velocity(front_state, front_l)
+    rear_vel = front_velocity(rear_state, rear_l)
+
+    gap = float(front_pos[0] - rear_pos[0])
+    gap_dot = float(front_vel[0] - rear_vel[0])
+    b_t = compute_gap_bias_bt(gap, gap_dot, gap_safe, k_gap=k_gap, k_vel=k_vel)
+    u_t = compute_gap_attention_ut(gap_dot, u_base=u_base, u_gain=u_gain)
+
+    return {
+        "gap": gap,
+        "gap_dot": gap_dot,
+        "b_t": b_t,
+        "u_t": u_t,
+    }
+
+
 class EgoVehicleOdeModel(KinematicBicycleModel):
     """ego 车辆模型，包含意见动态、分岔参数动态和安全控制器。"""
 
