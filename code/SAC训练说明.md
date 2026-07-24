@@ -474,10 +474,12 @@ epsilon in [0.01, 0.20]
 
 ```text
 reward =
-  5.0 * delta_progress
-+ 2.0 * opportunity * max(delta_progress, 0)
-- 0.05 * opportunity * (1 - progress)
-- 0.02 * (1 - progress)
+  80.0 * delta_progress
++ 0.15 * progress
++ 40.0 * opportunity * max(delta_progress, 0)
+- 30.0 * max(-delta_progress, 0)
+- 0.25 * opportunity * (1 - progress)
+- 0.05 * (1 - progress)
 - 0.5 * ||action_t - action_{t-1}||^2
 - 2.0 * I[v_y(t) * v_y(t-1) < 0]
 - 20.0 * max(0, (safe_margin - d_min) / safe_margin)^2
@@ -502,7 +504,7 @@ success        是否成功并道
 ### 14.1 变道进展奖励
 
 ```text
-+ 5.0 * delta_progress
++ 80.0 * delta_progress
 ```
 
 中文注释：
@@ -524,12 +526,36 @@ delta_progress = 当前 progress - 上一步 progress
 鼓励车辆持续向目标车道靠近，而不是停在原车道或来回退让。
 ```
 
-这一项只是过程奖励，系数较小，不会让总分轻易接近 100。
+这一项现在是主要的并道驱动力。相比旧版本的 `5.0`，系数提高到 `80.0`，目的是让“确实往目标车道移动”比“停着等待”更有吸引力。
 
-### 14.2 有机会时推进的额外奖励
+### 14.2 已经进入目标车道方向的持续奖励
 
 ```text
-+ 2.0 * opportunity * max(delta_progress, 0)
++ 0.15 * progress
+```
+
+中文注释：
+
+```text
+progress 越大，说明 ego 越靠近目标车道。
+```
+
+含义：
+
+```text
+只要 ego 已经开始向目标车道移动，即使本步 delta_progress 很小，也能获得一点持续正奖励。
+```
+
+作用：
+
+```text
+防止车辆刚开始并道后又觉得“保持原位更省事”，鼓励它把并道动作继续完成。
+```
+
+### 14.3 有机会时推进的额外奖励
+
+```text
++ 40.0 * opportunity * max(delta_progress, 0)
 ```
 
 中文注释：
@@ -539,10 +565,10 @@ opportunity = 1 表示当前存在并道机会
 opportunity = 0 表示当前不适合并道
 ```
 
-在代码中，机会由环境评分 `mu` 判断：
+在代码中，机会由环境评分和目标车道间隙共同判断：
 
 ```text
-opportunity = 1, if mu > 0.1
+opportunity = 1, if mu > 0.1 or target_lane_gap > gap_safe
 opportunity = 0, otherwise
 ```
 
@@ -559,12 +585,37 @@ opportunity = 0, otherwise
 鼓励“有机会就尽快进入”，不要错过合适的并道窗口。
 ```
 
-这里使用 `max(delta_progress, 0)`，是为了避免车辆后退时仍然获得机会奖励。
+这里使用 `max(delta_progress, 0)`，是为了避免车辆后退时仍然获得机会奖励。相比旧版本的 `2.0`，系数提高到 `40.0`，让“有机会时向目标车道移动”的信号更强。
 
-### 14.3 有机会但犹豫的惩罚
+### 14.4 后退惩罚
 
 ```text
-- 0.05 * opportunity * (1 - progress)
+- 30.0 * max(-delta_progress, 0)
+```
+
+中文注释：
+
+```text
+如果 delta_progress < 0，说明 ego 正在从目标车道方向退回原车道。
+max(-delta_progress, 0) 会把这种后退量变成正数，再乘以 -30.0 扣分。
+```
+
+含义：
+
+```text
+车辆不但要动，还要尽量朝正确方向动。
+```
+
+作用：
+
+```text
+减少并道过程中的反复横向摆动，避免策略学到“先动一下再退回去”的无效动作。
+```
+
+### 14.5 有机会但犹豫的惩罚
+
+```text
+- 0.25 * opportunity * (1 - progress)
 ```
 
 中文注释：
@@ -584,13 +635,13 @@ progress 越接近 1，这个惩罚越小。
 作用：
 
 ```text
-防止智能体在有机会时一直拖延或原地等待。
+防止智能体在有机会时一直拖延或原地等待。相比旧版本的 `0.05`，现在提高到 `0.25`，所以 `progress = 0` 且有机会时，每一步都会受到更明显的扣分。
 ```
 
-### 14.4 时间惩罚
+### 14.6 时间惩罚
 
 ```text
-- 0.02 * (1 - progress)
+- 0.05 * (1 - progress)
 ```
 
 中文注释：
@@ -609,10 +660,10 @@ progress 越接近 1，说明快完成并道，时间惩罚越弱。
 作用：
 
 ```text
-鼓励更快完成并道，而不是拖到仿真结束。
+鼓励更快完成并道，而不是拖到仿真结束。即使 `opportunity = 0`，停在原车道也会持续扣分，所以 `progress = 0` 的策略不再容易得到接近 0 或接近 100 的分数。
 ```
 
-### 14.5 action 平滑惩罚
+### 14.7 action 平滑惩罚
 
 ```text
 - 0.5 * ||action_t - action_{t-1}||^2
@@ -642,7 +693,7 @@ action = [k_mu, k, epsilon]
 让参数变化更平滑，从而让车辆行为更稳定。
 ```
 
-### 14.6 横向速度反复换向惩罚
+### 14.8 横向速度反复换向惩罚
 
 ```text
 - 2.0 * I[v_y(t) * v_y(t-1) < 0]
@@ -671,7 +722,7 @@ I[...]   = 指示函数，条件成立取 1，否则取 0
 
 这一项对应“不要反复变速度方向”的要求。
 
-### 14.7 安全距离连续惩罚
+### 14.9 安全距离连续惩罚
 
 ```text
 - 20.0 * max(0, (safe_margin - d_min) / safe_margin)^2
@@ -710,7 +761,7 @@ r = 碰撞界限
 不等到真正碰撞才惩罚，而是在靠得太近时提前惩罚。
 ```
 
-### 14.8 碰撞惩罚
+### 14.10 碰撞惩罚
 
 ```text
 - 1000 * I[collision]
@@ -737,7 +788,7 @@ collision = False 表示没有碰撞
 
 在代码中，碰撞还会让当前 episode 提前结束。
 
-### 14.9 成功奖励
+### 14.11 成功奖励
 
 ```text
 + (100 - 2t) * I[success]
@@ -771,7 +822,7 @@ t = 30s 时：100 - 2 * 30 = 40
 不仅鼓励成功并道，还鼓励尽快成功。
 ```
 
-### 14.10 总体效果
+### 14.12 总体效果
 
 这个 reward 设计会把不同策略的分数拉开：
 

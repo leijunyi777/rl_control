@@ -243,7 +243,7 @@ class Main10SacMergeEnv:
         env_min_distance = min(ego_min_distance, veh12_gap)
         lane_progress = self._lane_progress()
         progress_delta = lane_progress - self.prev_lane_progress
-        opportunity = 1.0 if self.state[16] > 0.1 else 0.0
+        opportunity = 1.0 if self.state[16] > 0.1 or veh12_gap > self.gap_safe else 0.0
         current_lateral_velocity = front_velocity(self.state[10:15], self.ego.L)[1]
         lateral_direction_flip = (
             self.prev_lateral_velocity * current_lateral_velocity < 0.0
@@ -252,10 +252,12 @@ class Main10SacMergeEnv:
         )
         safe_margin = 2.5 * self.collision_radius
 
-        progress_reward = 5.0 * progress_delta
-        opportunity_reward = 2.0 * opportunity * max(progress_delta, 0.0)
-        hesitation_penalty = -0.05 * opportunity * (1.0 - lane_progress)
-        time_penalty = -0.02 * (1.0 - lane_progress)
+        progress_reward = 80.0 * progress_delta
+        lane_progress_reward = 0.15 * lane_progress
+        opportunity_reward = 40.0 * opportunity * max(progress_delta, 0.0)
+        reverse_progress_penalty = -30.0 * max(-progress_delta, 0.0)
+        hesitation_penalty = -0.25 * opportunity * (1.0 - lane_progress)
+        time_penalty = -0.05 * (1.0 - lane_progress)
         action_smooth_penalty = -0.5 * float(np.sum((action - self.prev_action) ** 2))
         direction_flip_penalty = -2.0 if lateral_direction_flip else 0.0
         safety_penalty = -20.0 * max(0.0, (safe_margin - ego_min_distance) / safe_margin) ** 2
@@ -266,7 +268,9 @@ class Main10SacMergeEnv:
         success_bonus = (100.0 - 2.0 * self.t) if success else 0.0
         reward = (
             progress_reward
+            + lane_progress_reward
             + opportunity_reward
+            + reverse_progress_penalty
             + hesitation_penalty
             + time_penalty
             + action_smooth_penalty
@@ -296,7 +300,9 @@ class Main10SacMergeEnv:
             "time": self.t,
             "reward_terms": {
                 "progress": progress_reward,
+                "lane_progress": lane_progress_reward,
                 "opportunity": opportunity_reward,
+                "reverse_progress": reverse_progress_penalty,
                 "hesitation": hesitation_penalty,
                 "time": time_penalty,
                 "action_smooth": action_smooth_penalty,
