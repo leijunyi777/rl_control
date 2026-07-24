@@ -4,6 +4,7 @@
 # 但保留 code 文件夹及其所有内容
 !/code/
 !/code/**
+code/python/__pycache__
 
 # 保留 example.md 文件
 !/example.md
