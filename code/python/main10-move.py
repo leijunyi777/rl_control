@@ -19,7 +19,7 @@ from utils import draw_car, draw_environment
 SIM_TIME = 40.0
 DT = 0.05
 RENDER_DURING_SIM = True
-EXPORT_ANIMATION = False
+EXPORT_ANIMATION = True
 EXPORT_PATH = "main10_move_new_z_control.gif"
 EXPORT_FPS = 20
 EXPORT_FRAME_STRIDE = 2
