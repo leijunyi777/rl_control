@@ -108,6 +108,92 @@ def compute_gap_signals_from_states(
     }
 
 
+def compute_gap_confidence_attention_ut(
+    ego_state,
+    front_state,
+    rear_state,
+    ego_l,
+    front_l,
+    rear_l,
+    u_base=0.2,
+    u_amp=2.5,
+    sigma_d=2.0,
+    sigma_v=1.5,
+):
+    """Compute u(t) from ego alignment with the target gap center."""
+    ego_pos = front_position(ego_state, ego_l)
+    front_pos = front_position(front_state, front_l)
+    rear_pos = front_position(rear_state, rear_l)
+    ego_vel = front_velocity(ego_state, ego_l)
+    front_vel = front_velocity(front_state, front_l)
+    rear_vel = front_velocity(rear_state, rear_l)
+
+    x_gap = 0.5 * (front_pos[0] + rear_pos[0])
+    v_gap = 0.5 * (front_vel[0] + rear_vel[0])
+    d_gap = float(x_gap - ego_pos[0])
+    dv_gap = float(ego_vel[0] - v_gap)
+
+    sigma_d_safe = max(float(sigma_d), 1e-6)
+    sigma_v_safe = max(float(sigma_v), 1e-6)
+    exponent = -0.5 * (d_gap / sigma_d_safe) ** 2 - 0.5 * (dv_gap / sigma_v_safe) ** 2
+    confidence = float(np.exp(np.clip(exponent, -700.0, 0.0)))
+    u_t = float(u_base + u_amp * confidence)
+
+    return {
+        "x_gap": float(x_gap),
+        "v_gap": float(v_gap),
+        "d_gap": d_gap,
+        "dv_gap": dv_gap,
+        "confidence": confidence,
+        "u_t": u_t,
+    }
+
+
+def compute_gap_confidence_signals_from_states(
+    ego_state,
+    front_state,
+    rear_state,
+    ego_l,
+    front_l,
+    rear_l,
+    gap_safe,
+    k_gap=2.0,
+    k_vel=0.8,
+    u_base=0.2,
+    u_amp=2.5,
+    sigma_d=2.0,
+    sigma_v=1.5,
+):
+    """Return b(t), RBF-based u(t), and the gap-center alignment signals."""
+    front_pos = front_position(front_state, front_l)
+    rear_pos = front_position(rear_state, rear_l)
+    front_vel = front_velocity(front_state, front_l)
+    rear_vel = front_velocity(rear_state, rear_l)
+
+    gap = float(front_pos[0] - rear_pos[0])
+    gap_dot = float(front_vel[0] - rear_vel[0])
+    b_t = compute_gap_bias_bt(gap, gap_dot, gap_safe, k_gap=k_gap, k_vel=k_vel)
+    attention = compute_gap_confidence_attention_ut(
+        ego_state,
+        front_state,
+        rear_state,
+        ego_l,
+        front_l,
+        rear_l,
+        u_base=u_base,
+        u_amp=u_amp,
+        sigma_d=sigma_d,
+        sigma_v=sigma_v,
+    )
+
+    return {
+        "gap": gap,
+        "gap_dot": gap_dot,
+        "b_t": b_t,
+        **attention,
+    }
+
+
 class EgoVehicleOdeModel(KinematicBicycleModel):
     """ego 车辆模型，包含意见动态、分岔参数动态和安全控制器。"""
 
