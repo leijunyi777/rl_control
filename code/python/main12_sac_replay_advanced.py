@@ -21,7 +21,7 @@ from main12_sac_train import (
 from models_ode import EgoVehicleOdeModel, KinematicBicycleModel, front_velocity
 from utils import draw_car, draw_environment
 
-
+SEED = 7825
 NUM_GHOST_EGOS = 5
 EXPORT_ANIMATION = True
 EXPORT_PATH = "main12_sac_u_multi_ego_replay.gif"

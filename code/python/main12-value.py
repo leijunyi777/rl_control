@@ -21,7 +21,7 @@ from main12_sac_train import (
 )
 from models_ode import EgoVehicleOdeModel, KinematicBicycleModel, front_velocity
 
-
+SEED = 7825
 NUM_EVAL_EPISODES = 10
 RESULT_FIG_PATH = "main12_value_comparison.png"
 
