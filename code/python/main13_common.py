@@ -143,11 +143,8 @@ def confidence_to_gap(ego_state, front_state, rear_state):
     v_gap = 0.5 * (front_vel[0] + rear_vel[0])
     d_gap = float(x_gap - ego_pos[0])
     dv_gap = float(ego_vel[0] - v_gap)
-    if d_gap < 0.0:
-        confidence = 0.0
-    else:
-        exponent = -0.5 * (d_gap / max(SIGMA_D, 1e-6)) ** 2 - 0.5 * (dv_gap / max(SIGMA_V, 1e-6)) ** 2
-        confidence = float(np.exp(np.clip(exponent, -700.0, 0.0)))
+    exponent = -0.5 * (d_gap / max(SIGMA_D, 1e-6)) ** 2 - 0.5 * (dv_gap / max(SIGMA_V, 1e-6)) ** 2
+    confidence = float(np.exp(np.clip(exponent, -700.0, 0.0)))
     return {
         "x_gap": float(x_gap),
         "v_gap": float(v_gap),
