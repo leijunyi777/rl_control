@@ -1,7 +1,7 @@
 from main13_common import run_main13
 
 
-EXPORT_ANIMATION = False
+EXPORT_ANIMATION = True
 EXPORT_PATH = "main13_move_high_level.gif"
 
 
