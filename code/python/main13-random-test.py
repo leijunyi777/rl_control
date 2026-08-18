@@ -8,7 +8,7 @@ import main13_common as m13
 from models_ode import front_velocity
 
 
-NUM_TEST_RUNS = 10
+NUM_TEST_RUNS = 100
 ENABLE_EGO_CONTROL = True
 USE_RL_U = m13.USE_RL_U
 TEST_RANDOM_SEED = None
