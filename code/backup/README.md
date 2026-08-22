@@ -11,6 +11,7 @@ backup/
   model_ode.py                  共享车辆模型、意见动力学、main7 间隙跟随场景、绘图工具
   sim_*.py                      仿真脚本，主要依赖 model_ode.py
   rl_*.py                       SAC 训练/回放脚本，依赖 model_ode.py 和对应的本地训练文件
+  eval_*.py                     评估与随机测试脚本，依赖 model_ode.py 和本地 sim/rl 文件
 ```
 
 外部 Python 库仍需要：
@@ -35,12 +36,22 @@ torch   # 仅 RL 训练/回放需要
 | `sim_07_main10_gap_z_move.py` | `main10-move.py` | 使用 main10 的新 `z_new` 实际控制 ego 并道。 |
 | `sim_08_main11_rbf_u_nomove.py` | `main11-nomove.py` | 使用 main11 最新 RBF 置信度公式计算 `u(t)`；ego 匀速直行，只观察 `z` 更新。 |
 | `sim_09_main11_rbf_u_move.py` | `main11-move.py` | 使用 main11 最新 `b(t)` 与 RBF `u(t)` 更新 `z_new` 并实际控制 ego。 |
+| `sim_10_main12_random_ego_nomove.py` | `main12-nomove.py` / 当前 main11 no-control 动力学 | main12 随机 ego 初始位置版本；ego 在原车道匀速直行，只观察新 `z` 与 gap 信号。文件内直接保留当前 main11 no-control 动力学，不再依赖旧 main11 备份。 |
+| `sim_11_main12_random_ego_move.py` | `main12-move.py` / 当前 main11 move 动力学 | main12 随机 ego 初始位置版本；使用当前 RBF `u(t)` 与 `b(t)` 控制 ego 并入单一 gap。文件内直接保留当前 main11 move 动力学。 |
+| `sim_12_main13_high_level_common.py` | `main13_common.py` | main13 多车高层决策核心模块：最近三车选择、`C_f/C_r` 置信度、`B=C_f-C_r`、高层意见 `y`、底层 `z`、目标点与避障控制。 |
+| `sim_13_main13_high_level_nomove.py` | `main13-nomove.py` | main13 高层决策展示版本；ego 不执行并道控制，只展示决策、目标点和信号曲线。 |
+| `sim_14_main13_high_level_move.py` | `main13-move.py` | main13 高层决策实际控制版本；高层选择 gap，底层使用公式或 main12 SAC 策略控制 ego 并入。 |
 | `rl_01_main7_sac_train_params.py` | `main_sac_train.py` | SAC 学习 `[k_mu, k, eps]` 三个控制参数，环境基于 main7。 |
 | `rl_02_main7_sac_replay.py` | `replay.py` | 加载 main7 SAC 策略并导出回放。 |
 | `rl_03_main10_sac_train_b.py` | `main10_sac_train.py` | SAC action 为 `b(t)`，直接注入 main10 新意见动力学。 |
 | `rl_04_main10_sac_replay_b.py` | `main10_sac_replay.py` | 加载 main10 的 `b(t)` 策略并回放。 |
 | `rl_05_main11_sac_train_u.py` | `main11_sac_train.py` | SAC action 为 `u(t)`，直接注入 main11 最新意见动力学。 |
 | `rl_06_main11_sac_replay_u.py` | `main11_sac_replay.py` | 加载 main11 的 `u(t)` 策略并回放。 |
+| `rl_07_main12_sac_train_u_random_ego.py` | `main12_sac_train.py` | main12 SAC 训练版本；action 为 `u(t)`，ego 初始 `x=20±5m`，策略保存为 `main12_sac_u_policy.pth`。该文件只引用本地 `sim_11_main12_random_ego_move.py` 和 `model_ode.py`。 |
+| `rl_08_main12_sac_replay_u.py` | `main12_sac_replay.py` | 加载 `main12_sac_u_policy.pth`，执行一次 main12 带图回放并可导出 GIF。 |
+| `rl_09_main12_sac_replay_multi_ego.py` | `main12_sac_replay_advanced.py` | main12 高级回放；随机生成多个 ego 虚影，同步用训练策略推进，直到全部成功或结束。 |
+| `eval_01_main12_value_compare.py` | `main12-value.py` | main12 价值对比；用训练策略和原始 RBF `u(t)` 在相同随机初始位置下运行多次并比较 reward。 |
+| `eval_02_main13_random_test.py` | `main13-random-test.py` | main13 随机测试；多次随机 gap 日程和 ego 初始位置，按 reward 输出均值、标准差、成功率、碰撞率和分项图表。 |
 
 ## 核心公式演进
 
@@ -83,6 +94,31 @@ z_dot = -d * z + u(t) * tanh(alpha * z) + b(t)
 
 直观理解：`b(t)` 判断空隙是否客观安全；`u(t)` 判断 ego 是否已经对齐空隙中心且速度接近，从而决定是否有信心执行并道。
 
+### Main12 的随机初始位置与低层 SAC-u
+
+```text
+x_ego(0) = 20 + uniform(-5, 5)
+action = u(t) in [0, 3]
+state = [ego 相对前车位置、速度, ego 相对后车位置、速度]
+```
+
+Main12 固定目标 gap 为前后两车之间的单一间隙，只训练底层注意力 `u(t)`。这样训练出的策略可以在 main13 中复用：高层先选择某一个局部 gap，底层再把该 gap 当作 main12 的前后车 pair 来计算 state 和控制。
+
+### Main13 的双层高层决策
+
+```text
+C_gap = exp(
+  - d_gap^2  / (2 * sigma_d^2)
+  - dv_gap^2 / (2 * sigma_v^2)
+)
+
+B = C_f - C_r
+y_dot = -d_y * y + u_high * tanh(alpha_y * y) + B
+u_high_dot = (-u_high + U_max * y^(2n) / (K^n + y^(2n))) / tau
+```
+
+Main13 先选取距离 ego 最近的三辆目标车，形成前后两个候选 gap。`C_f` 与 `C_r` 分别表示前 gap 和后 gap 的置信度，差值 `B=C_f-C_r` 给出方向偏置。即使两个置信度差别很小，只要差值持续存在，也会通过 `y` 与 `u_high` 的自强化机制被逐渐放大，从而形成稳定的 `FORWARD / BACKWARD / WAIT` 决策。
+
 ## 运行示例
 
 在 `backup` 文件夹内运行：
@@ -91,6 +127,11 @@ z_dot = -d * z + u(t) * tanh(alpha * z) + b(t)
 python sim_09_main11_rbf_u_move.py
 python rl_05_main11_sac_train_u.py
 python rl_06_main11_sac_replay_u.py
+python sim_11_main12_random_ego_move.py
+python rl_07_main12_sac_train_u_random_ego.py
+python rl_08_main12_sac_replay_u.py
+python sim_14_main13_high_level_move.py
+python eval_02_main13_random_test.py
 ```
 
 如果只想检查语法：
@@ -111,4 +152,6 @@ foreach ($file in Get-ChildItem -Filter *.py) { python -m py_compile $file.FullN
 - 备份文件使用更明确的顺序编号和语义化命名。
 - `model_ode.py` 集中保存车辆模型、意见动力学公式、main7 间隙跟随场景和绘图工具。
 - main11 文件已独立于 main10，不再继承或读取 main10 参数。
+- 新加入的 main12 文件不再从 `code/python` 或旧 main11 源文件导入；普通仿真脚本直接内置当前 main11 动力学，训练/回放/评估脚本只依赖 backup 内本地文件。
+- 新加入的 main13 文件使用一个本地 `sim_12_main13_high_level_common.py` 保存高层决策核心逻辑，入口脚本和随机测试脚本只依赖该 common 文件与 `model_ode.py`，不再依赖原始 `code/python`。
 - 已执行逐文件 `py_compile` 检查，backup 内所有 Python 文件语法通过。
