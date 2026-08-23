@@ -9,3 +9,5 @@ code/python/__pycache__
 # 保留 example.md 文件
 !/example.md
 !/.gitignore
+
+!/dissertation
