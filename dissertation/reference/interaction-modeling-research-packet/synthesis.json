@@ -1,0 +1,97 @@
+{
+  "consensus_evidence": [
+    {
+      "reference_id": "ref-001",
+      "finding": "Pedestrian trajectory and intention prediction: a ... - Springer # Pedestrian trajectory and intention prediction: a comprehensive review of models, datasets, and challenges ## Abstract This paper presents a systematic review of models, datasets, and evaluation metrics used for pedestrian detection, trajectory forecasting, and intention prediction in urban pedestrian–vehicle mixed environments."
+    },
+    {
+      "reference_id": "ref-001",
+      "finding": "As autonomous driving systems increasingly interact with vulnerable road users (VRUs), accurately anticipating human motion and intent becomes essential for safety, trust, and reliable decision-making."
+    },
+    {
+      "reference_id": "ref-002",
+      "finding": "Technological Forecasting and Social Change, 184, 122011. https://doi.org/10.1016/j.techfore.2022.122011 ``` ... ## 2 Methodology A systematic literature review refers to the process of systematically finding and compiling all available information on an effect or topic area [26."
+    },
+    {
+      "reference_id": "ref-003",
+      "finding": "Additionally, encoder–decoder frameworks, as demonstrated in the work of [[16]]() , enhance the modeling of vehicle interactions, a key factor in multi-agent environments like traffic. ..."
+    },
+    {
+      "reference_id": "ref-003",
+      "finding": "Deep learning techniques, especially those employing LSTMs and RNNs, have proven highly effective in capturing the sequential patterns inherent in driving situations. # Enhancing vehicle lane change prediction via transfer learning infused with social interaction dynamics ## 2."
+    },
+    {
+      "reference_id": "ref-003",
+      "finding": "One of the earliest models, the Gipps model [[17]]() , laid the foundation for understanding lane change behavior by structuring it into stages of intention, condition, and execution."
+    },
+    {
+      "reference_id": "ref-004",
+      "finding": "Research on Lane-Changing Decision-Making for Autonomous ..."
+    },
+    {
+      "reference_id": "ref-004",
+      "finding": "In a hybrid traffic environment with autonomous vehicles (AVs) and human-driven vehicles (HVs), lane change decisions are critical for ensuring both safety and efficiency."
+    },
+    {
+      "reference_id": "ref-005",
+      "finding": "To address this issue, this study used unsupervised learning methods for clustering lane-changing risks. ... #### Lane-changing risk prediction based on LightGBM Given the imbalance in sample sizes of different lane-changing intentions, the Synthetic Minority Over-sampling Technique (SMOTE) 50.\") was applied to the training data to mitigate the negative effects of imbalance on model performance. ... ## Results ### Lane-changing risk prediction results #### Lane-changing risk quantification and clustering Further analysis reveals a higher proportion of medium and high risk in left lane-changing samples compared to right lane-changing samples, likely associated with left lane-changing overtaking behavior."
+    },
+    {
+      "reference_id": "ref-005",
+      "finding": "This conclusion aligns with the findings of Shangguan et al. ... #### Lane-changing risk prediction In this study, 1790 lane-changing samples were analyzed using the clustering method described in “ Lane-changing risk labeling ”, resulting in the clustering of 694 low risk, 287 medium risk, and 73 high risk samples in left lane-changing cases, as well as 498 low risk, 182 medium risk, and 56 high risk ... ## Discussion and conclusions Statistical analysis revealed that low risk lane-changing samples accounted for the largest proportion, while medium and high risk lane-changing samples, although relatively smaller, were significantly higher than findings in previous research, highlighting the heightened risk on icy and snowy surfaces. ..."
+    },
+    {
+      "reference_id": "ref-005",
+      "finding": "Wei Zhao [View author publications](https://www.nature.com/search?author=Wei%20Zhao) ... ### Contributions W.Z. and X.D. provided the study conception and design; Z.W. conducted software simulation, data collection and processing; N.G. analyzed the results; W.Z. wrote the manuscript; N.G. typesetted the manuscript."
+    },
+    {
+      "reference_id": "ref-006",
+      "finding": "Lane changing decisions ### Results and discussion The results in this section demonstrate how the proposed OLCD framework performs under different traffic demands and penetration rates, highlighting its effects on safety, efficiency, and stability."
+    },
+    {
+      "reference_id": "ref-007",
+      "finding": "Connected and Automated Vehicle Cooperative Lane-Changing: A ..."
+    },
+    {
+      "reference_id": "ref-007",
+      "finding": "Li et al. derived a lane change strategy that considers both time and energy optimisation for connected autonomous vehicles in mixed traffic, ensuring robustness against human driving vehicle interference through control barrier functions, balancing longitudinal and lateral safety and directly addressing the practical challenges brought by the # Connected and Automated Vehicle Cooperative Lane-Changing: A Review of Models, Methodologies and Perspectives ## 1 Introduction To accurately capture the developmental trajectory and current state of CLC technology, it is essential to review existing survey studies in this domain and analyse their evolutionary trends and research gaps."
+    },
+    {
+      "reference_id": "ref-008",
+      "finding": "A dynamic graph-based multi-task learning model for cut-in ..."
+    },
+    {
+      "reference_id": "ref-008",
+      "finding": "Therefore, a multi-task learning framework consisting of a shared layer and a task-specific layer is proposed to capture detailed information using the prior trajectory data of vehicles as input for cut-in intention and trajectory forecasting of the target vehicle. # A dynamic graph-based multi-task learning model for cut-in intention and trajectory prediction ## References Scholar](https://scholar.google.com/scholar_lookup?title=A+review+of+sensing+and+communication%2C+human+factors%2C+and+controller+aspects+for+information-aware+connected+and+automated+vehicles&author=A.+Sarker&author=H.+Shen&author=M.+Rahman&author=M.+Chowdhury&author=K.+Dey&author=F.+Li&author=Y.+Wang&author=H.S.+Narman&journal ... [3] L."
+    },
+    {
+      "reference_id": "ref-009",
+      "finding": "The effectiveness of H2GP and PTD3 is verified by comparison and ablation experiments, and the results demonstrate that the trajectory planning method in this paper has the best performance relative to other ways of processing the key vectors and value vectors in terms of imitation and safety metrics. ... ## Section snippets ### Trajectory predicting based on graph theory Vehicles trajectory prediction aims at predicting the motion states of human-driven vehicles in a few future steps. ..."
+    },
+    {
+      "reference_id": "ref-009",
+      "finding": "GNN is widely used in trajectory prediction researches, as it have good effects on scene encoding and can represent traffic scenarios ... ### Data set This paper uses the Lyft L5 autonomous driving dataset (Houston et al., 2021) to provide the expert driving demonstrations, and builds a parallel simulation environment based on it."
+    },
+    {
+      "reference_id": "ref-009",
+      "finding": "The graph model H2GP further improves the scene comprehension and knowledge extraction in the planning method, comparing to the others with image foundation."
+    },
+    {
+      "reference_id": "ref-010",
+      "finding": "As the authors mentioned, the interactive lane change logic needs to be proposed in the future. ... ### Content and contributions The proposed framework provides a practical and scalable solution for real-world deployment, balancing safety, efficiency, and system-level coordination in a way that previous single-vehicle or non-interactive multi-vehicle approaches do not. ... ## Simulation results Literature Support: The use of short prediction horizons for lane-change decision-making is consistent with related work in cooperative driving. ... **Fig."
+    }
+  ],
+  "conflicting_evidence": [
+    {
+      "reference_id": "ref-022",
+      "finding": "Based on simulation results for various intersection scenarios, we show that the model exhibits reasonable behavior expected in traffic, including the capability of reproducing scenarios extracted from real-world traffic data and reasonable performance in resolving traffic conflicts. ... ## References [23] H."
+    }
+  ],
+  "methodological_patterns": {
+    "systematic review": 2,
+    "methods/protocol": 12,
+    "review": 8,
+    "primary/other": 29
+  },
+  "research_gaps": []
+}
