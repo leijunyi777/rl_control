@@ -298,8 +298,6 @@ g(t) =
 p_F^x(t)-p_R^x(t).
 $$
 
-The gap-rate term is
-
 $$
 \dot{g}(t) =
 v_F^x(t)-v_R^x(t).
@@ -715,7 +713,19 @@ This kind of PID-like structure function is to provide a clear and stable mappin
 这种类 PID 结构作用是提供从意见驱动目标点到可执行车辆输入的清晰稳定映射，同时通过输入裁剪避免不现实的加速度和转向变化。
 
 # 实验设计/Experimental Design
+
+**English.**
+
+The experiment was organized in a way from simple to complex. The single gap environment isolated the underlying issues: testing the learning effect of RL when the target gap has been determined, and whether the controller can learn when to increase attention and commit to merging. The multi-gap environment introduced high-level decisions: when multiple dynamic gaps exist simultaneously, can the system select the appropriate local gap to avoid excessive switching and safely execute merging. The specific parameters of the experiment are listed in the appendix.
+
+**中文。**
+
+实验按照由简单到复杂的方式组织。单 gap 环境隔离底层问题：测试当目标 gap 已经确定时，RL的学习效果以及控制器能否学会何时提高注意力并承诺并道。多 gap 环境引入高层决策：当多个动态 gap 同时存在时，系统能否选择合适的局部 gap，避免过度切换，并安全执行并道。实验具体参数表在附录中。
+
+
 ## 单gap并入实验/Single-Gap Merging Experiment
+
+
 ## 多gap并入实验/Multi-Gap Merging Experiment
 # 结果和讨论/Results and discussion
 # 结论/Conclusions

@@ -33,7 +33,7 @@ from single_gap_env import (
 # =========================
 # 与原始 main12_sac_train.py 保持一致的训练参数
 # =========================
-NUM_EPISODES = 200
+NUM_EPISODES = 50
 RENDER_DURING_TRAINING = False
 SEED = 7
 
@@ -285,6 +285,8 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
             f"Episode {episode:04d} | reward={episode_reward:8.2f} | "
             f"progress={last_info['lane_progress']:.3f} | "
             f"mean_u={row['mean_u']:.3f} | ego_x0={env.ego_x0:.3f} | "
+            f"q1_loss={last_losses['q1_loss']:.2f} | "   # 新增
+            f"alpha={last_losses['alpha']:.3f} | "   # 新增
             f"success={last_info['success']} | collision={last_info['collided']} | steps={total_steps}"
         )
 

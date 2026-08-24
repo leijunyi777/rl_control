@@ -14,7 +14,7 @@ from typing import List
 import torch
 import torch.nn as nn
 
-from single_gap_env import U_HIGH, U_LOW, SingleGapEnv, compute_rbf_u, run_episode
+from single_gap_env import U_HIGH, U_LOW, SingleGapEnv, compute_rbf_u, run_episode, EGO_X_BASE, EGO_X_RANDOM_RANGE
 
 
 HIDDEN_SIZE = 256
@@ -23,7 +23,7 @@ ACTION_DIM = 1
 # =========================
 # 开头可调评价参数
 # =========================
-EVAL_RUNS = 10
+EVAL_RUNS = 20
 EVAL_SEED = 7825
 DEFAULT_POLICY_PATH = "single_gap_sac_policy.pth"
 DEFAULT_CSV_OUT = "single_gap_compare.csv"
@@ -105,7 +105,7 @@ def compare(policy_path: str, runs: int, seed: int, csv_out: str) -> None:
     policy = LoadedPolicy(policy_path)
     rows = []
     for run in range(1, runs + 1):
-        ego_x0 = 20.0 + rng.uniform(-5.0, 5.0)
+        ego_x0 = EGO_X_BASE + rng.uniform(-EGO_X_RANDOM_RANGE, EGO_X_RANDOM_RANGE)
         sac = run_with_ego_x(policy, ego_x0)
         rbf = run_with_ego_x(lambda obs, info: info["formula_u_t"], ego_x0)
         row = {
