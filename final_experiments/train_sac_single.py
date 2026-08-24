@@ -33,7 +33,7 @@ from single_gap_env import (
 # =========================
 # 与原始 main12_sac_train.py 保持一致的训练参数
 # =========================
-# SAC 对样本量比较敏感，50 轮通常只适合快速冒烟测试；默认给到 300 轮用于正式训练。
+# SAC 对样本量比较敏感，50+ 轮通常只适合快速冒烟测试；默认给到 300 轮用于正式训练。
 NUM_EPISODES = 300
 RENDER_DURING_TRAINING = False
 SEED = 7
