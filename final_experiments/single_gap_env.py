@@ -472,7 +472,8 @@ class SingleGapEnv:
     """与 main12_sac_train.Main12SacUEnv 等价的独立环境。"""
 
     def __init__(self, seed: Optional[int] = None, render: bool = False, sim_time: float = SIM_TIME, dt: float = DT):
-        self.rng = np.random.default_rng(seed)
+        if seed is not None:
+            np.random.seed(seed)
         self.seed = seed
         self.render_enabled = render
         self.sim_time = sim_time
@@ -488,14 +489,14 @@ class SingleGapEnv:
         self.ax_anim = None
         self.ax_z = None
         self.ax_dist = None
-        self.reset(seed=seed)
+        self.reset()
 
     def sample_ego_x(self):
-        return float(EGO_X_BASE + self.rng.uniform(-EGO_X_RANDOM_RANGE, EGO_X_RANDOM_RANGE))
+        return float(EGO_X_BASE + np.random.uniform(-EGO_X_RANDOM_RANGE, EGO_X_RANDOM_RANGE))
 
     def reset(self, seed: Optional[int] = None, ego_x0: Optional[float] = None):
         if seed is not None:
-            self.rng = np.random.default_rng(seed)
+            np.random.seed(seed)
             self.seed = seed
         if ego_x0 is None:
             ego_x0 = self.sample_ego_x()
@@ -514,10 +515,14 @@ class SingleGapEnv:
         self.t_hist, self.z_hist, self.u_hist, self.formula_u_hist, self.bt_hist = [], [], [], [], []
         self.dist1_hist, self.dist2_hist, self.veh12_gap_hist = [], [], []
         self.ego_x0 = ego_x0
-        return self.observation()
+        return self._get_obs()
 
     def observation(self):
         return self._get_obs().tolist()
+
+    def _action_to_u(self, action):
+        action = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
+        return float(U_LOW + 0.5 * (action[0] + 1.0) * (U_HIGH - U_LOW))
 
     def _get_obs(self):
         diag = self.dynamics.diagnostics(self.state)
@@ -540,10 +545,9 @@ class SingleGapEnv:
     def _is_success(self, lane_progress, min_distance):
         return lane_progress > 0.95 and abs(self.ego.y - self.target_lane_y) < 0.2 and min_distance > 1.5 * self.collision_radius
 
-    def step(self, u_t: float):
-        action = np.array([2.0 * (float(u_t) - U_LOW) / (U_HIGH - U_LOW) - 1.0], dtype=np.float32)
-        action = np.clip(action, -1.0, 1.0)
-        action_u_t = float(U_LOW + 0.5 * (action[0] + 1.0) * (U_HIGH - U_LOW))
+    def step_action(self, action):
+        action = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
+        action_u_t = self._action_to_u(action)
         self.dynamics.set_action_u_t(action_u_t)
         sol = solve_ivp(self.dynamics.rhs, (self.t, self.t + self.dt), self.state, method="RK45", rtol=1e-6, atol=1e-8, max_step=self.dt / 5.0)
         if not sol.success:
@@ -627,7 +631,11 @@ class SingleGapEnv:
         self.veh12_gap_hist.append(veh12_gap)
         if self.render_enabled:
             self.render(info)
-        return self.observation(), reward, done, info
+        return self._get_obs(), reward, done, info
+
+    def step(self, u_t: float):
+        action = np.array([2.0 * (float(u_t) - U_LOW) / (U_HIGH - U_LOW) - 1.0], dtype=np.float32)
+        return self.step_action(action)
 
     def render(self, info):
         require_matplotlib()

@@ -1,8 +1,8 @@
-"""基于 single_gap_env.py 的 SAC 训练脚本。
+"""单 gap SAC 训练脚本。
 
-只依赖 single_gap_env.py 和 torch。训练结束后输出：
-1. 训练好的 policy checkpoint (.pth)
-2. 每个 episode 的训练结果 CSV
+本文件把原始 main12_sac_train.py 中与训练结果相关的 SAC 结构、随机数流程、
+action 尺度、环境调用顺序和 checkpoint 字段逐项复制到最终版独立环境中。
+额外保留 CSV 输出，方便论文实验统计。
 """
 
 from __future__ import annotations
@@ -12,19 +12,31 @@ import csv
 import os
 import random
 from collections import deque
-from typing import Deque, List, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from single_gap_env import SingleGapEnv, U_HIGH, U_LOW
+from single_gap_env import (
+    ACTION_DIM,
+    DT,
+    EGO_X_BASE,
+    EGO_X_RANDOM_RANGE,
+    SIM_TIME,
+    U_HIGH,
+    U_LOW,
+    SingleGapEnv,
+)
 
 
 # =========================
-# 与最新 main12 SAC 训练一致的参数
+# 与原始 main12_sac_train.py 保持一致的训练参数
 # =========================
 NUM_EPISODES = 200
+RENDER_DURING_TRAINING = False
+SEED = 7
+
 BATCH_SIZE = 256
 REPLAY_SIZE = 200_000
 INITIAL_RANDOM_STEPS = 1_000
@@ -35,36 +47,36 @@ POLICY_LR = 3e-4
 Q_LR = 3e-4
 ALPHA_LR = 3e-4
 HIDDEN_SIZE = 256
-ACTION_DIM = 1
-SEED = 7
+
+POLICY_PATH = "single_gap_sac_policy.pth"
+CSV_PATH = "single_gap_sac_train.csv"
 
 
 def set_seed(seed: int) -> None:
-    """设置 Python 与 torch 的随机种子。"""
+    """设置 Python、NumPy 和 PyTorch 的随机种子。"""
     random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
 
 
 class ReplayBuffer:
-    """SAC 经验回放池。"""
+    """经验回放池，采样方式与原始 main11/main12 SAC 完全一致。"""
 
     def __init__(self, capacity: int):
-        self.buffer: Deque[Tuple[List[float], List[float], float, List[float], float]] = deque(maxlen=capacity)
+        self.buffer = deque(maxlen=capacity)
 
-    def push(self, state: List[float], action: List[float], reward: float, next_state: List[float], done: float) -> None:
+    def push(self, state, action, reward, next_state, done) -> None:
         self.buffer.append((state, action, reward, next_state, done))
 
     def sample(self, batch_size: int, device: torch.device):
         batch = random.sample(self.buffer, batch_size)
-        state, action, reward, next_state, done = zip(*batch)
+        state, action, reward, next_state, done = map(np.stack, zip(*batch))
         return (
-            torch.tensor(state, dtype=torch.float32, device=device),
-            torch.tensor(action, dtype=torch.float32, device=device),
-            torch.tensor(reward, dtype=torch.float32, device=device).unsqueeze(1),
-            torch.tensor(next_state, dtype=torch.float32, device=device),
-            torch.tensor(done, dtype=torch.float32, device=device).unsqueeze(1),
+            torch.as_tensor(state, dtype=torch.float32, device=device),
+            torch.as_tensor(action, dtype=torch.float32, device=device),
+            torch.as_tensor(reward[:, None], dtype=torch.float32, device=device),
+            torch.as_tensor(next_state, dtype=torch.float32, device=device),
+            torch.as_tensor(done[:, None], dtype=torch.float32, device=device),
         )
 
     def __len__(self) -> int:
@@ -72,7 +84,7 @@ class ReplayBuffer:
 
 
 class GaussianPolicy(nn.Module):
-    """SAC 高斯策略网络，输出归一化动作 [-1, 1]。"""
+    """SAC 高斯策略网络，输出归一化 action，范围为 [-1, 1]。"""
 
     def __init__(self, state_dim: int, action_dim: int, hidden_size: int):
         super().__init__()
@@ -86,19 +98,19 @@ class GaussianPolicy(nn.Module):
         self.log_std = nn.Linear(hidden_size, action_dim)
 
     def forward(self, state):
-        h = self.net(state)
-        mean = self.mean(h)
-        log_std = torch.clamp(self.log_std(h), -20.0, 2.0)
+        x = self.net(state)
+        mean = self.mean(x)
+        log_std = torch.clamp(self.log_std(x), -20.0, 2.0)
         return mean, log_std
 
     def sample(self, state):
         mean, log_std = self.forward(state)
         std = log_std.exp()
         normal = torch.distributions.Normal(mean, std)
-        x_t = normal.rsample()
-        action = torch.tanh(x_t)
-        log_prob = normal.log_prob(x_t) - torch.log(1.0 - action.pow(2) + 1e-6)
-        log_prob = log_prob.sum(dim=1, keepdim=True)
+        raw_action = normal.rsample()
+        action = torch.tanh(raw_action)
+        log_prob = normal.log_prob(raw_action) - torch.log(1.0 - action.pow(2) + 1e-6)
+        log_prob = log_prob.sum(dim=-1, keepdim=True)
         return action, log_prob, torch.tanh(mean)
 
 
@@ -116,11 +128,11 @@ class QNetwork(nn.Module):
         )
 
     def forward(self, state, action):
-        return self.net(torch.cat([state, action], dim=1))
+        return self.net(torch.cat([state, action], dim=-1))
 
 
 class SACAgent:
-    """最小独立 SAC 实现。"""
+    """与原始 main11_sac_train.py 一致的最小 SAC 实现。"""
 
     def __init__(self, state_dim: int, action_dim: int, device: torch.device):
         self.device = device
@@ -135,24 +147,23 @@ class SACAgent:
         self.policy_opt = torch.optim.Adam(self.policy.parameters(), lr=POLICY_LR)
         self.q1_opt = torch.optim.Adam(self.q1.parameters(), lr=Q_LR)
         self.q2_opt = torch.optim.Adam(self.q2.parameters(), lr=Q_LR)
+
+        self.target_entropy = -float(action_dim)
         self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
         self.alpha_opt = torch.optim.Adam([self.log_alpha], lr=ALPHA_LR)
-        self.target_entropy = -float(action_dim)
 
     @property
     def alpha(self):
         return self.log_alpha.exp()
 
-    def select_action(self, state: List[float], evaluate: bool = False) -> List[float]:
-        state_tensor = torch.tensor([state], dtype=torch.float32, device=self.device)
+    def select_action(self, state, evaluate: bool = False):
+        state_tensor = torch.as_tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
         with torch.no_grad():
-            if evaluate:
-                _, _, action = self.policy.sample(state_tensor)
-            else:
-                action, _, _ = self.policy.sample(state_tensor)
-        return action.cpu()[0].tolist()
+            action, _, mean_action = self.policy.sample(state_tensor)
+        chosen = mean_action if evaluate else action
+        return chosen.squeeze(0).cpu().numpy()
 
-    def update(self, replay_buffer: ReplayBuffer) -> dict:
+    def update(self, replay_buffer: ReplayBuffer):
         state, action, reward, next_state, done = replay_buffer.sample(BATCH_SIZE, self.device)
 
         with torch.no_grad():
@@ -161,10 +172,10 @@ class SACAgent:
                 self.target_q1(next_state, next_action),
                 self.target_q2(next_state, next_action),
             ) - self.alpha * next_log_prob
-            q_target = reward + (1.0 - done) * GAMMA * target_q
+            target = reward + (1.0 - done) * GAMMA * target_q
 
-        q1_loss = F.mse_loss(self.q1(state, action), q_target)
-        q2_loss = F.mse_loss(self.q2(state, action), q_target)
+        q1_loss = F.mse_loss(self.q1(state, action), target)
+        q2_loss = F.mse_loss(self.q2(state, action), target)
 
         self.q1_opt.zero_grad()
         q1_loss.backward()
@@ -187,72 +198,73 @@ class SACAgent:
         alpha_loss.backward()
         self.alpha_opt.step()
 
-        self.soft_update(self.q1, self.target_q1)
-        self.soft_update(self.q2, self.target_q2)
+        self._soft_update(self.q1, self.target_q1)
+        self._soft_update(self.q2, self.target_q2)
 
         return {
-            "q1_loss": float(q1_loss.item()),
-            "q2_loss": float(q2_loss.item()),
-            "policy_loss": float(policy_loss.item()),
-            "alpha": float(self.alpha.item()),
+            "q1_loss": q1_loss.item(),
+            "q2_loss": q2_loss.item(),
+            "policy_loss": policy_loss.item(),
+            "alpha": self.alpha.item(),
         }
 
-    @staticmethod
-    def soft_update(source: nn.Module, target: nn.Module) -> None:
-        """目标网络软更新。"""
+    def _soft_update(self, source, target) -> None:
         for source_param, target_param in zip(source.parameters(), target.parameters()):
             target_param.data.copy_(TAU * source_param.data + (1.0 - TAU) * target_param.data)
 
 
-def action_to_u(action: List[float]) -> float:
-    """将 SAC 输出的 [-1,1] 动作映射到真实 u(t)。"""
-    return U_LOW + 0.5 * (action[0] + 1.0) * (U_HIGH - U_LOW)
+def action_to_u(action) -> float:
+    """仅用于记录 mean_u，不用于环境 step，避免改变原始训练 action 路径。"""
+    action = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
+    return float(U_LOW + 0.5 * (action[0] + 1.0) * (U_HIGH - U_LOW))
 
 
-def train(
-    episodes: int,
-    seed: int,
-    policy_out: str,
-    csv_out: str,
-) -> None:
-    """执行 SAC 训练。"""
+def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
+    """执行 SAC 训练，并输出 checkpoint 与每轮结果 CSV。"""
     set_seed(seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    env = SingleGapEnv(seed=seed)
-    state_dim = len(env.reset(seed=seed))
-    agent = SACAgent(state_dim, ACTION_DIM, device)
+
+    # 保持原始 main12_sac_train.py 的调用顺序：
+    # 构造环境时 reset 一次，随后再 reset 一次读取 state_dim。
+    env = SingleGapEnv(render=RENDER_DURING_TRAINING)
+    state_dim = env.reset().shape[0]
+    action_dim = ACTION_DIM
+
+    agent = SACAgent(state_dim, action_dim, device)
     replay_buffer = ReplayBuffer(REPLAY_SIZE)
 
-    rows = []
     total_steps = 0
+    rows = []
     last_losses = {"q1_loss": 0.0, "q2_loss": 0.0, "policy_loss": 0.0, "alpha": 0.0}
 
     for episode in range(1, episodes + 1):
-        state = env.reset(seed=seed + episode)
+        state = env.reset()
         episode_reward = 0.0
-        done = False
+        u_values = []
+        last_info = {"lane_progress": 0.0, "collided": False, "success": False, "u_t": 0.0, "time": 0.0, "min_distance": 0.0}
         step_count = 0
-        last_info = {"lane_progress": 0.0, "collided": False, "success": False, "u_t": 0.0, "min_distance": 0.0}
-        u_sum = 0.0
 
-        while not done:
+        for _ in range(int(SIM_TIME / DT)):
             if total_steps < INITIAL_RANDOM_STEPS:
-                action = [random.uniform(-1.0, 1.0)]
+                action = np.random.uniform(-1.0, 1.0, size=action_dim).astype(np.float32)
             else:
                 action = agent.select_action(state)
-            u_t = action_to_u(action)
-            next_state, reward, done, info = env.step(u_t)
+
+            next_state, reward, done, info = env.step_action(action)
             replay_buffer.push(state, action, reward, next_state, float(done))
             state = next_state
             episode_reward += reward
-            step_count += 1
-            total_steps += 1
-            u_sum += u_t
+            u_values.append(info["u_t"])
             last_info = info
+            total_steps += 1
+            step_count += 1
 
             if len(replay_buffer) >= BATCH_SIZE:
                 for _ in range(UPDATES_PER_STEP):
                     last_losses = agent.update(replay_buffer)
+
+            if done:
+                break
 
         row = {
             "episode": episode,
@@ -262,29 +274,32 @@ def train(
             "success": float(last_info["success"]),
             "time": last_info["time"],
             "steps": step_count,
-            "mean_u": u_sum / max(step_count, 1),
-            "ego_x0": env.ego_x0,
+            "mean_u": float(np.mean(u_values)) if u_values else 0.0,
+            "ego_x0": float(env.ego_x0),
             "min_distance": last_info["min_distance"],
             **last_losses,
         }
         rows.append(row)
+
         print(
-            f"Episode {episode:04d} | reward={episode_reward:9.3f} | "
-            f"progress={row['progress']:.3f} | success={bool(row['success'])} | "
-            f"collision={bool(row['collision'])} | mean_u={row['mean_u']:.3f}"
+            f"Episode {episode:04d} | reward={episode_reward:8.2f} | "
+            f"progress={last_info['lane_progress']:.3f} | "
+            f"mean_u={row['mean_u']:.3f} | ego_x0={env.ego_x0:.3f} | "
+            f"success={last_info['success']} | collision={last_info['collided']} | steps={total_steps}"
         )
 
     os.makedirs(os.path.dirname(os.path.abspath(policy_out)), exist_ok=True)
     torch.save(
         {
+            "policy_state_dict": agent.policy.state_dict(),
             "state_dim": state_dim,
-            "action_dim": ACTION_DIM,
-            "hidden_size": HIDDEN_SIZE,
+            "action_dim": action_dim,
             "u_low": U_LOW,
             "u_high": U_HIGH,
-            "policy_state_dict": agent.policy.state_dict(),
-            "episodes": episodes,
-            "seed": seed,
+            "sim_time": SIM_TIME,
+            "dt": DT,
+            "ego_x_base": EGO_X_BASE,
+            "ego_x_random_range": EGO_X_RANDOM_RANGE,
         },
         policy_out,
     )
@@ -294,16 +309,16 @@ def train(
         writer.writeheader()
         writer.writerows(rows)
 
-    print(f"训练完成，policy 已保存：{policy_out}")
-    print(f"训练结果 CSV 已保存：{csv_out}")
+    print(f"Saved trained policy to {policy_out}")
+    print(f"Saved training CSV to {csv_out}")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="单 gap SAC 训练")
-    parser.add_argument("--episodes", type=int, default=NUM_EPISODES, help="训练 episode 数")
-    parser.add_argument("--seed", type=int, default=SEED, help="随机种子")
-    parser.add_argument("--policy-out", default="single_gap_sac_policy.pth", help="输出 policy 路径")
-    parser.add_argument("--csv-out", default="single_gap_sac_train.csv", help="训练结果 CSV 路径")
+    parser = argparse.ArgumentParser(description="single-gap SAC training")
+    parser.add_argument("--episodes", type=int, default=NUM_EPISODES, help="training episode count")
+    parser.add_argument("--seed", type=int, default=SEED, help="random seed")
+    parser.add_argument("--policy-out", default=POLICY_PATH, help="output policy path")
+    parser.add_argument("--csv-out", default=CSV_PATH, help="output training CSV path")
     args = parser.parse_args()
     train(args.episodes, args.seed, args.policy_out, args.csv_out)
 
