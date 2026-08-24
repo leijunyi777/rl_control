@@ -23,7 +23,7 @@ ACTION_DIM = 1
 # =========================
 # 开头可调评价参数
 # =========================
-EVAL_RUNS = 20
+EVAL_RUNS = 100
 EVAL_SEED = 7825
 DEFAULT_POLICY_PATH = "main12_sac_u_policy.pth"
 DEFAULT_CSV_OUT = "single_gap_compare.csv"

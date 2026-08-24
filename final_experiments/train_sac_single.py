@@ -34,7 +34,7 @@ from single_gap_env import (
     RENDER_DURING_TRAINING,
     REPLAY_SIZE,
     RESULT_FIG_PATH,
-    SEED,
+    SEED,   
     SIM_TIME,
     TAU,
     U_HIGH,

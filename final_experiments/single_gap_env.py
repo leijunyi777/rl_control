@@ -18,7 +18,7 @@ from scipy.integrate import solve_ivp
 # =========================
 # 与原始 main11/main12 一致的训练和环境参数
 # =========================
-NUM_EPISODES = 200
+NUM_EPISODES = 100
 RENDER_DURING_TRAINING = False
 SIM_TIME = 40.0
 DT = 0.05
@@ -46,8 +46,8 @@ ORIGINAL_LANE_Y = LANE_WIDTH * 0.5
 TARGET_LANE_Y = LANE_WIDTH * 1.5
 FRONT_X0 = 30.0
 REAR_X0 = 15.0
-EGO_X_BASE = 20.0
-EGO_X_RANDOM_RANGE = 5.0
+EGO_X_BASE = 22.0
+EGO_X_RANDOM_RANGE = 2.0
 
 DESIRED_GAP = 20.0
 GAP_SAFE = 10.0
@@ -76,10 +76,10 @@ TIME_PENALTY_GAIN = 0.05
 ACTION_SMOOTH_PENALTY_GAIN = 0.5
 DIRECTION_FLIP_PENALTY = 2.0
 SAFETY_MARGIN_FACTOR = 2.5
-SAFETY_PENALTY_GAIN = 20.0
+SAFETY_PENALTY_GAIN = 5.0
 COLLISION_PENALTY = 1000.0
 SUCCESS_SAFE_FACTOR = 1.5
-SUCCESS_BONUS_BASE = 100.0
+SUCCESS_BONUS_BASE = 200.0
 SUCCESS_TIME_PENALTY_GAIN = 2.0
 TIMEOUT_PROGRESS_PENALTY_GAIN = 0.0
 
@@ -661,7 +661,7 @@ class Main11SacUEnv:
         success = self._is_success(lane_progress, ego_min_distance)
         timeout = (not collided) and (not success) and self.t >= self.sim_time
         collision_penalty = -COLLISION_PENALTY if collided else 0.0
-        success_bonus = (SUCCESS_BONUS_BASE - SUCCESS_TIME_PENALTY_GAIN * self.t) if success else 0.0
+        success_bonus = (SUCCESS_BONUS_BASE - SUCCESS_TIME_PENALTY_GAIN * self.t * 0.5) if success else 0.0
         timeout_penalty = -TIMEOUT_PROGRESS_PENALTY_GAIN * (1.0 - lane_progress) if timeout else 0.0
         reward = (
             progress_reward

@@ -19,7 +19,7 @@ from multi_gap_env import run_episode
 # =========================
 EVAL_RUNS = 100
 EVAL_SEED = None
-DEFAULT_POLICY_PATH = None
+DEFAULT_POLICY_PATH = "main12_sac_u_policy.pth"
 DEFAULT_CSV_OUT = "multi_gap_eval.csv"
 
 

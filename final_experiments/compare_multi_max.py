@@ -18,8 +18,8 @@ from multi_gap_env import run_episode
 # 开头可调评价参数
 # =========================
 EVAL_RUNS = 100
-EVAL_SEED = None
-DEFAULT_POLICY_PATH = None
+EVAL_SEED = 7
+DEFAULT_POLICY_PATH = "main12_sac_u_policy.pth"
 DEFAULT_CSV_OUT = "multi_gap_opinion_vs_max.csv"
 
 
