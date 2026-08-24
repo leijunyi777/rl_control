@@ -27,8 +27,8 @@ TARGET_SPEED = 15.0
 ORIGINAL_LANE_Y = LANE_WIDTH * 0.5
 TARGET_LANE_Y = LANE_WIDTH * 1.5
 
-EGO_X_BASE = 22.0
-EGO_X_RANDOM_RANGE = 2.0
+EGO_X_BASE = 20.0
+EGO_X_RANDOM_RANGE = 5.0
 FRONT_X0 = 30.0
 REAR_X0 = 15.0
 
@@ -55,21 +55,20 @@ OBS_SCALE = np.array([40.0, 8.0, 20.0, 10.0, 40.0, 8.0, 20.0, 10.0], dtype=np.fl
 # =========================
 # 训练 reward 参数
 # =========================
-PROGRESS_REWARD_GAIN = 160.0
-LANE_PROGRESS_STEP_GAIN = 0.08
-OPPORTUNITY_PROGRESS_GAIN = 80.0
-REVERSE_PROGRESS_PENALTY_GAIN = 80.0
-HESITATION_PENALTY_GAIN = 0.08
-TIME_PENALTY_GAIN = 0.015
-ACTION_SMOOTH_PENALTY_GAIN = 0.10
-DIRECTION_FLIP_PENALTY = 1.0
-SAFETY_MARGIN_FACTOR = 1.6
-SAFETY_PENALTY_GAIN = 80.0
+PROGRESS_REWARD_GAIN = 80.0
+LANE_PROGRESS_STEP_GAIN = 0.15
+OPPORTUNITY_PROGRESS_GAIN = 40.0
+REVERSE_PROGRESS_PENALTY_GAIN = 30.0
+HESITATION_PENALTY_GAIN = 0.25
+TIME_PENALTY_GAIN = 0.05
+ACTION_SMOOTH_PENALTY_GAIN = 0.5
+DIRECTION_FLIP_PENALTY = 2.0
+SAFETY_MARGIN_FACTOR = 2.5
+SAFETY_PENALTY_GAIN = 20.0
 COLLISION_PENALTY = 1000.0
-SUCCESS_SAFE_FACTOR = 2.0
-SUCCESS_BONUS_BASE = 350.0
-SUCCESS_TIME_PENALTY_GAIN = 5.0
-TIMEOUT_PROGRESS_PENALTY_GAIN = 200.0
+SUCCESS_SAFE_FACTOR = 1.5
+SUCCESS_BONUS_BASE = 100.0
+SUCCESS_TIME_PENALTY_GAIN = 2.0
 
 
 plt = None
@@ -592,10 +591,9 @@ class SingleGapEnv:
             and abs(current_lateral_velocity) > 1e-3
         )
         safety_margin = SAFETY_MARGIN_FACTOR * self.collision_radius
-        safety_scale = max(safety_margin - self.collision_radius, 1e-6)
-        safety_violation = max(0.0, (safety_margin - ego_min_distance) / safety_scale)
+        safety_violation = max(0.0, (safety_margin - ego_min_distance) / safety_margin)
         reward_terms = {
-            "progress": PROGRESS_REWARD_GAIN * max(progress_delta, 0.0),
+            "progress": PROGRESS_REWARD_GAIN * progress_delta,
             "lane_progress": LANE_PROGRESS_STEP_GAIN * lane_progress,
             "opportunity": OPPORTUNITY_PROGRESS_GAIN * opportunity * max(progress_delta, 0.0),
             "reverse_progress": -REVERSE_PROGRESS_PENALTY_GAIN * max(-progress_delta, 0.0),
@@ -610,7 +608,6 @@ class SingleGapEnv:
         timeout = (not collided) and (not success) and self.t >= self.sim_time
         reward_terms["collision"] = -COLLISION_PENALTY if collided else 0.0
         reward_terms["success"] = (SUCCESS_BONUS_BASE - SUCCESS_TIME_PENALTY_GAIN * self.t) if success else 0.0
-        reward_terms["timeout"] = -TIMEOUT_PROGRESS_PENALTY_GAIN * (1.0 - lane_progress) if timeout else 0.0
         reward = float(sum(reward_terms.values()))
 
         self.prev_lane_progress = lane_progress

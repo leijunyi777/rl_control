@@ -25,7 +25,7 @@ ACTION_DIM = 1
 # =========================
 EVAL_RUNS = 20
 EVAL_SEED = 7825
-DEFAULT_POLICY_PATH = "single_gap_sac_policy_best.pth"
+DEFAULT_POLICY_PATH = "single_gap_sac_policy.pth"
 DEFAULT_CSV_OUT = "single_gap_compare.csv"
 
 

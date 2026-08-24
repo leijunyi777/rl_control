@@ -34,41 +34,23 @@ from single_gap_env import (
 # 与原始 main12_sac_train.py 保持一致的训练参数
 # =========================
 # SAC 对样本量比较敏感，50+ 轮通常只适合快速冒烟测试；默认给到 300 轮用于正式训练。
-NUM_EPISODES = 500
+NUM_EPISODES = 200
 RENDER_DURING_TRAINING = False
 SEED = 7
 
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 REPLAY_SIZE = 200_000
 # 单维 action 问题不需要太长的纯随机阶段，降低该值可以更早进入策略学习。
-INITIAL_RANDOM_STEPS = 300
+INITIAL_RANDOM_STEPS = 1_000
 UPDATES_PER_STEP = 1
 GAMMA = 0.99
 TAU = 0.005
-POLICY_LR = 2e-4
-Q_LR = 2e-4
-ALPHA_LR = 1e-4
+POLICY_LR = 3e-4
+Q_LR = 3e-4
+ALPHA_LR = 3e-4
 HIDDEN_SIZE = 256
-REWARD_SCALE = 0.05
-TRAIN_REWARD_CLIP = 30.0
-GRAD_CLIP_NORM = 5.0
-
 POLICY_PATH = "single_gap_sac_policy.pth"
-BEST_POLICY_PATH = "single_gap_sac_policy_best.pth"
 CSV_PATH = "single_gap_sac_train.csv"
-
-# =========================
-# 随机初始位置课程学习与泛化评价
-# =========================
-CURRICULUM_ENABLED = True
-CURRICULUM_START_RANGE = 0.0
-CURRICULUM_END_RANGE = EGO_X_RANDOM_RANGE
-CURRICULUM_EXPAND_EPISODES = 250
-
-EVAL_DURING_TRAINING = True
-EVAL_INTERVAL = 25
-EVAL_EGO_OFFSETS = (-1.0, -0.5, 0.0, 0.5, 1.0)
-
 
 def set_seed(seed: int) -> None:
     """设置 Python、NumPy 和 PyTorch 的随机种子。"""
@@ -199,12 +181,10 @@ class SACAgent:
 
         self.q1_opt.zero_grad()
         q1_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.q1.parameters(), GRAD_CLIP_NORM)
         self.q1_opt.step()
 
         self.q2_opt.zero_grad()
         q2_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.q2.parameters(), GRAD_CLIP_NORM)
         self.q2_opt.step()
 
         new_action, log_prob, _ = self.policy.sample(state)
@@ -213,7 +193,6 @@ class SACAgent:
 
         self.policy_opt.zero_grad()
         policy_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.policy.parameters(), GRAD_CLIP_NORM)
         self.policy_opt.step()
 
         alpha_loss = -(self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
@@ -242,21 +221,6 @@ def action_to_u(action) -> float:
     return float(U_LOW + 0.5 * (action[0] + 1.0) * (U_HIGH - U_LOW))
 
 
-def curriculum_range(episode: int) -> float:
-    """根据训练轮次逐步扩大 ego 初始位置随机范围。"""
-    if not CURRICULUM_ENABLED:
-        return EGO_X_RANDOM_RANGE
-    ratio = min(1.0, max(0.0, (episode - 1) / max(CURRICULUM_EXPAND_EPISODES, 1)))
-    return float(CURRICULUM_START_RANGE + ratio * (CURRICULUM_END_RANGE - CURRICULUM_START_RANGE))
-
-
-def sample_curriculum_ego_x(episode: int) -> tuple[float, float]:
-    """采样当前课程阶段的 ego 初始 x，并返回本轮使用的随机范围。"""
-    current_range = curriculum_range(episode)
-    ego_x0 = float(EGO_X_BASE + np.random.uniform(-current_range, current_range))
-    return ego_x0, current_range
-
-
 def checkpoint_payload(agent: SACAgent, state_dim: int, action_dim: int) -> dict:
     """构造 policy checkpoint，保证最终策略和最佳泛化策略字段一致。"""
     return {
@@ -265,54 +229,10 @@ def checkpoint_payload(agent: SACAgent, state_dim: int, action_dim: int) -> dict
         "action_dim": action_dim,
         "u_low": U_LOW,
         "u_high": U_HIGH,
-        "reward_scale": REWARD_SCALE,
-        "train_reward_clip": TRAIN_REWARD_CLIP,
         "sim_time": SIM_TIME,
         "dt": DT,
         "ego_x_base": EGO_X_BASE,
         "ego_x_random_range": EGO_X_RANDOM_RANGE,
-        "curriculum_enabled": CURRICULUM_ENABLED,
-        "curriculum_start_range": CURRICULUM_START_RANGE,
-        "curriculum_end_range": CURRICULUM_END_RANGE,
-        "curriculum_expand_episodes": CURRICULUM_EXPAND_EPISODES,
-    }
-
-
-def evaluate_policy(agent: SACAgent) -> dict:
-    """用固定 ego 初始位置集合评估当前策略，减少随机训练日志带来的误判。"""
-    rng_state = np.random.get_state()
-    try:
-        eval_env = SingleGapEnv(render=False)
-        rewards = []
-        successes = []
-        collisions = []
-        times = []
-        min_distances = []
-        for offset in EVAL_EGO_OFFSETS:
-            ego_x0 = float(EGO_X_BASE + offset * EGO_X_RANDOM_RANGE)
-            state = eval_env.reset(ego_x0=ego_x0)
-            total_reward = 0.0
-            last_info = {"success": False, "collided": False, "time": SIM_TIME, "min_distance": 0.0}
-            for _ in range(int(SIM_TIME / DT)):
-                action = agent.select_action(state, evaluate=True)
-                state, reward, done, info = eval_env.step_action(action)
-                total_reward += reward
-                last_info = info
-                if done:
-                    break
-            rewards.append(total_reward)
-            successes.append(float(last_info["success"]))
-            collisions.append(float(last_info["collided"]))
-            times.append(float(last_info["time"]))
-            min_distances.append(float(last_info["min_distance"]))
-    finally:
-        np.random.set_state(rng_state)
-    return {
-        "eval_reward": float(np.mean(rewards)),
-        "eval_success_rate": float(np.mean(successes)),
-        "eval_collision_rate": float(np.mean(collisions)),
-        "eval_time": float(np.mean(times)),
-        "eval_min_distance": float(np.mean(min_distances)),
     }
 
 
@@ -333,15 +253,9 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
     total_steps = 0
     rows = []
     last_losses = {"q1_loss": 0.0, "q2_loss": 0.0, "policy_loss": 0.0, "alpha": 0.0}
-    last_eval = {"eval_reward": "", "eval_success_rate": "", "eval_collision_rate": "", "eval_time": "", "eval_min_distance": ""}
-    best_eval_reward = -float("inf")
-
     for episode in range(1, episodes + 1):
-        ego_x0, current_range = sample_curriculum_ego_x(episode)
-        state = env.reset(ego_x0=ego_x0)
+        state = env.reset()
         episode_reward = 0.0
-        episode_train_reward = 0.0
-        episode_train_reward_raw = 0.0
         term_sums = {}
         u_values = []
         last_info = {"lane_progress": 0.0, "collided": False, "success": False, "u_t": 0.0, "time": 0.0, "min_distance": 0.0}
@@ -354,13 +268,9 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
                 action = agent.select_action(state)
 
             next_state, reward, done, info = env.step_action(action)
-            train_reward_raw = reward * REWARD_SCALE
-            train_reward = float(np.clip(train_reward_raw, -TRAIN_REWARD_CLIP, TRAIN_REWARD_CLIP))
-            replay_buffer.push(state, action, train_reward, next_state, float(done))
+            replay_buffer.push(state, action, reward, next_state, float(done))
             state = next_state
             episode_reward += reward
-            episode_train_reward += train_reward
-            episode_train_reward_raw += train_reward_raw
             u_values.append(info["u_t"])
             last_info = info
             for key, value in info.get("reward_terms", {}).items():
@@ -375,23 +285,9 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
             if done:
                 break
 
-        if EVAL_DURING_TRAINING and episode % EVAL_INTERVAL == 0:
-            last_eval = evaluate_policy(agent)
-            if last_eval["eval_reward"] > best_eval_reward:
-                best_eval_reward = last_eval["eval_reward"]
-                torch.save(checkpoint_payload(agent, state_dim, action_dim), BEST_POLICY_PATH)
-            print(
-                f"Eval {episode:04d} | reward={last_eval['eval_reward']:8.2f} | "
-                f"success_rate={last_eval['eval_success_rate']:.2f} | "
-                f"collision_rate={last_eval['eval_collision_rate']:.2f} | "
-                f"time={last_eval['eval_time']:.2f}"
-            )
-
         row = {
             "episode": episode,
             "reward": episode_reward,
-            "train_reward": episode_train_reward,
-            "train_reward_raw": episode_train_reward_raw,
             "progress": last_info["lane_progress"],
             "collision": float(last_info["collided"]),
             "success": float(last_info["success"]),
@@ -399,9 +295,7 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
             "steps": step_count,
             "mean_u": float(np.mean(u_values)) if u_values else 0.0,
             "ego_x0": float(env.ego_x0),
-            "curriculum_range": current_range,
             "min_distance": last_info["min_distance"],
-            **last_eval,
             **last_losses,
         }
         for key in sorted(term_sums):
@@ -412,15 +306,11 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
             f"Episode {episode:04d} | reward={episode_reward:8.2f} | "
             f"progress={last_info['lane_progress']:.3f} | "
             f"mean_u={row['mean_u']:.3f} | ego_x0={env.ego_x0:.3f} | "
-            f"q1_loss={last_losses['q1_loss']:.2f} | "   # 新增
-            f"alpha={last_losses['alpha']:.3f} | "   # 新增
             f"success={last_info['success']} | collision={last_info['collided']} | steps={total_steps}"
         )
 
     os.makedirs(os.path.dirname(os.path.abspath(policy_out)), exist_ok=True)
     torch.save(checkpoint_payload(agent, state_dim, action_dim), policy_out)
-    if EVAL_DURING_TRAINING and best_eval_reward == -float("inf"):
-        torch.save(checkpoint_payload(agent, state_dim, action_dim), BEST_POLICY_PATH)
 
     with open(csv_out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
@@ -428,8 +318,6 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
         writer.writerows(rows)
 
     print(f"Saved trained policy to {policy_out}")
-    if EVAL_DURING_TRAINING:
-        print(f"Saved best evaluation policy to {BEST_POLICY_PATH}")
     print(f"Saved training CSV to {csv_out}")
 
 
