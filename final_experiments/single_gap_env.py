@@ -55,21 +55,20 @@ OBS_SCALE = np.array([40.0, 8.0, 20.0, 10.0, 40.0, 8.0, 20.0, 10.0], dtype=np.fl
 # =========================
 # 训练 reward 参数
 # =========================
-PROGRESS_REWARD_GAIN = 180.0
+PROGRESS_REWARD_GAIN = 160.0
 LANE_PROGRESS_STEP_GAIN = 0.08
-OPPORTUNITY_PROGRESS_GAIN = 100.0
+OPPORTUNITY_PROGRESS_GAIN = 80.0
 REVERSE_PROGRESS_PENALTY_GAIN = 80.0
-HESITATION_PENALTY_GAIN = 0.18
-TIME_PENALTY_GAIN = 0.04
-ACTION_SMOOTH_PENALTY_GAIN = 0.08
-DIRECTION_FLIP_PENALTY = 1.5
-SAFETY_MARGIN_FACTOR = 1.5
-SAFETY_PENALTY_GAIN = 8.0
-SAFETY_VIOLATION_CAP = 1.0
+HESITATION_PENALTY_GAIN = 0.08
+TIME_PENALTY_GAIN = 0.015
+ACTION_SMOOTH_PENALTY_GAIN = 0.10
+DIRECTION_FLIP_PENALTY = 1.0
+SAFETY_MARGIN_FACTOR = 1.6
+SAFETY_PENALTY_GAIN = 80.0
 COLLISION_PENALTY = 1000.0
-SUCCESS_BONUS_BASE = 500.0
-SUCCESS_TIME_PENALTY_GAIN = 10.0
-TIMEOUT_PROGRESS_PENALTY_GAIN = 300.0
+SUCCESS_BONUS_BASE = 350.0
+SUCCESS_TIME_PENALTY_GAIN = 5.0
+TIMEOUT_PROGRESS_PENALTY_GAIN = 200.0
 
 
 plt = None
@@ -593,7 +592,7 @@ class SingleGapEnv:
         )
         safety_margin = SAFETY_MARGIN_FACTOR * self.collision_radius
         safety_scale = max(safety_margin - self.collision_radius, 1e-6)
-        safety_violation = min(SAFETY_VIOLATION_CAP, max(0.0, (safety_margin - ego_min_distance) / safety_scale))
+        safety_violation = max(0.0, (safety_margin - ego_min_distance) / safety_scale)
         reward_terms = {
             "progress": PROGRESS_REWARD_GAIN * max(progress_delta, 0.0),
             "lane_progress": LANE_PROGRESS_STEP_GAIN * lane_progress,

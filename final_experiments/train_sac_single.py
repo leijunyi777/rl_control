@@ -49,10 +49,8 @@ POLICY_LR = 2e-4
 Q_LR = 2e-4
 ALPHA_LR = 1e-4
 HIDDEN_SIZE = 256
-REWARD_SCALE = 0.02
+REWARD_SCALE = 0.05
 GRAD_CLIP_NORM = 5.0
-MIN_ALPHA = 0.08
-MAX_ALPHA = 1.0
 
 POLICY_PATH = "single_gap_sac_policy.pth"
 CSV_PATH = "single_gap_sac_train.csv"
@@ -162,7 +160,7 @@ class SACAgent:
 
     @property
     def alpha(self):
-        return torch.clamp(self.log_alpha.exp(), MIN_ALPHA, MAX_ALPHA)
+        return self.log_alpha.exp()
 
     def select_action(self, state, evaluate: bool = False):
         state_tensor = torch.as_tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
@@ -319,8 +317,6 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
             "u_low": U_LOW,
             "u_high": U_HIGH,
             "reward_scale": REWARD_SCALE,
-            "min_alpha": MIN_ALPHA,
-            "max_alpha": MAX_ALPHA,
             "sim_time": SIM_TIME,
             "dt": DT,
             "ego_x_base": EGO_X_BASE,
