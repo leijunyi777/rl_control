@@ -16,8 +16,22 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 from single_gap_env import (
+    ACTION_SMOOTH_PENALTY_GAIN,
+    COLLISION_PENALTY,
+    DIRECTION_FLIP_PENALTY,
     EgoVehicleOdeModel,
+    HESITATION_PENALTY_GAIN,
     KinematicBicycleModel,
+    LANE_PROGRESS_STEP_GAIN,
+    OPPORTUNITY_PROGRESS_GAIN,
+    PROGRESS_REWARD_GAIN,
+    REVERSE_PROGRESS_PENALTY_GAIN,
+    SAFETY_MARGIN_FACTOR,
+    SAFETY_PENALTY_GAIN,
+    SUCCESS_BONUS_BASE,
+    SUCCESS_TIME_PENALTY_GAIN,
+    TIMEOUT_PROGRESS_PENALTY_GAIN,
+    TIME_PENALTY_GAIN,
     _signed_safe,
     compute_gap_bias_bt,
     compute_gap_confidence_signals_from_states,
@@ -406,19 +420,23 @@ class MultiGapEnv:
         current_u_norm = normalized_u(float(diag["u_t"]))
         current_lateral_velocity = front_velocity(diag["ego_state"], VEHICLE_L)[1]
         lateral_flip = self.prev_lateral_velocity * current_lateral_velocity < 0.0 and abs(self.prev_lateral_velocity) > 1e-3 and abs(current_lateral_velocity) > 1e-3
-        safe_margin = 2.5 * self.dynamics.ego.r
+        safety_margin = SAFETY_MARGIN_FACTOR * self.dynamics.ego.r
+        safety_scale = max(safety_margin - self.dynamics.ego.r, 1e-6)
+        safety_violation = max(0.0, (safety_margin - diag["min_distance"]) / safety_scale)
+        timeout = (not diag["collision"]) and (not diag["success"]) and self.t >= SIM_TIME
         terms = {
-            "progress": 80.0 * progress_delta,
-            "lane_progress": 0.15 * current_progress,
-            "opportunity": 40.0 * opportunity * max(progress_delta, 0.0),
-            "reverse_progress": -30.0 * max(-progress_delta, 0.0),
-            "hesitation": -0.25 * opportunity * (1.0 - current_progress),
-            "time": -0.05 * (1.0 - current_progress),
-            "action_smooth": -0.5 * (current_u_norm - self.prev_u_norm) ** 2,
-            "direction_flip": -2.0 if lateral_flip else 0.0,
-            "safety": -20.0 * max(0.0, (safe_margin - diag["min_distance"]) / safe_margin) ** 2,
-            "collision": -1000.0 if diag["collision"] else 0.0,
-            "success": (100.0 - 2.0 * self.t) if diag["success"] else 0.0,
+            "progress": PROGRESS_REWARD_GAIN * max(progress_delta, 0.0),
+            "lane_progress": LANE_PROGRESS_STEP_GAIN * current_progress,
+            "opportunity": OPPORTUNITY_PROGRESS_GAIN * opportunity * max(progress_delta, 0.0),
+            "reverse_progress": -REVERSE_PROGRESS_PENALTY_GAIN * max(-progress_delta, 0.0),
+            "hesitation": -HESITATION_PENALTY_GAIN * opportunity * (1.0 - current_progress),
+            "time": -TIME_PENALTY_GAIN * (1.0 - current_progress),
+            "action_smooth": -ACTION_SMOOTH_PENALTY_GAIN * (current_u_norm - self.prev_u_norm) ** 2,
+            "direction_flip": -DIRECTION_FLIP_PENALTY if lateral_flip else 0.0,
+            "safety": -SAFETY_PENALTY_GAIN * safety_violation ** 2,
+            "collision": -COLLISION_PENALTY if diag["collision"] else 0.0,
+            "success": (SUCCESS_BONUS_BASE - SUCCESS_TIME_PENALTY_GAIN * self.t) if diag["success"] else 0.0,
+            "timeout": -TIMEOUT_PROGRESS_PENALTY_GAIN * (1.0 - current_progress) if timeout else 0.0,
         }
         reward = float(sum(terms.values()))
         self.prev_progress = current_progress
@@ -431,6 +449,8 @@ class MultiGapEnv:
             "reward": reward,
             "reward_terms": terms,
             "progress": current_progress,
+            "safe_margin": safety_margin,
+            "timeout": timeout,
             "switch_count": self.switch_count,
         }
         self.frames.append(snapshot(self.t, diag, self.switch_count))
