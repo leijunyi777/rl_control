@@ -14,6 +14,15 @@ from typing import List, Optional
 from multi_gap_env import run_episode
 
 
+# =========================
+# 开头可调评价参数
+# =========================
+EVAL_RUNS = 100
+EVAL_SEED = None
+DEFAULT_POLICY_PATH = None
+DEFAULT_CSV_OUT = "multi_gap_eval.csv"
+
+
 class LoadedPolicy:
     """延迟加载 torch policy，避免没有 policy 时引入额外依赖。"""
 
@@ -96,10 +105,10 @@ def evaluate(runs: int, seed: Optional[int], policy_path: Optional[str], csv_out
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="多 gap 多轮随机评价")
-    parser.add_argument("--runs", type=int, default=100, help="评价轮次")
-    parser.add_argument("--seed", type=int, default=None, help="随机种子")
-    parser.add_argument("--policy", default=None, help="可选：单 gap SAC policy 路径")
-    parser.add_argument("--csv-out", default="multi_gap_eval.csv", help="输出 CSV")
+    parser.add_argument("--runs", type=int, default=EVAL_RUNS, help="评价轮次")
+    parser.add_argument("--seed", type=int, default=EVAL_SEED, help="随机种子")
+    parser.add_argument("--policy", default=DEFAULT_POLICY_PATH, help="可选：单 gap SAC policy 路径")
+    parser.add_argument("--csv-out", default=DEFAULT_CSV_OUT, help="输出 CSV")
     args = parser.parse_args()
     evaluate(args.runs, args.seed, args.policy, args.csv_out)
 

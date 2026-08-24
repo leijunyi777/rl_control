@@ -1,43 +1,42 @@
-"""单 gap 并道实验环境。
+"""最终版单 gap 环境：独立复刻最新 main12 / main11 SAC-u 逻辑。
 
-本文件是最终版单 gap 仿真环境，参考最新 main12 设置，但不依赖任何旧环境代码。
-环境本身只使用 Python 标准库，可直接运行，也可被 SAC 训练和对比脚本导入。
+说明：
+1. 不 import 原有 main12、main11、main7、models_ode、utils 文件。
+2. 将原项目需要的自行车模型、RK45 连续积分、后车 20s 后让行、RBF u(t)、SAC-u 环境逻辑复制到本文件。
+3. 运行本文件会显示一次带图仿真；训练和对比脚本可继续导入 SingleGapEnv。
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
-import math
-import random
-from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
+
+import numpy as np
+from scipy.integrate import solve_ivp
 
 
 # =========================
-# 1. 与最新 main12 一致的参数
+# 与最新 main12 / main11 保持一致的参数
 # =========================
 SIM_TIME = 40.0
 DT = 0.05
 LANE_WIDTH = 4.0
-ORIGINAL_LANE_Y = 0.5 * LANE_WIDTH
-TARGET_LANE_Y = 1.5 * LANE_WIDTH
 VEHICLE_L = 2.8
 TARGET_SPEED = 15.0
+ORIGINAL_LANE_Y = LANE_WIDTH * 0.5
+TARGET_LANE_Y = LANE_WIDTH * 1.5
 
-FRONT_X0 = 30.0
-REAR_X0 = 15.0
 EGO_X_BASE = 20.0
 EGO_X_RANDOM_RANGE = 5.0
+FRONT_X0 = 30.0
+REAR_X0 = 15.0
 
-COLLISION_RADIUS = 1.5
 DESIRED_GAP = 20.0
 GAP_SAFE = 10.0
 YIELD_TIME = 20.0
-SINE_VEL_AMP = 4.0
+SINE_A_VEL = 4.0
 SINE_PERIOD = 6.0
-REAR_ACCEL_MIN = -5.0
-REAR_ACCEL_MAX = 2.0
 
 K_GAP = 0.2
 K_VEL = 0.1
@@ -47,303 +46,652 @@ SIGMA_D = 2.0
 SIGMA_V = 1.5
 Z_DAMPING = 2.0
 Z_ALPHA = 2.0
-Z0 = 0.01
+
 U_LOW = 0.0
 U_HIGH = 3.0
-
-EGO_K_P = 0.7
-EGO_K_V = 2.0
-EGO_K_O = 1.0
-EGO_K_W = 40.0
-EGO_R_ETA = -4.0
-EGO_ACCEL_LIMIT = 5.0
-
-OBS_SCALE = [40.0, 8.0, 20.0, 10.0, 40.0, 8.0, 20.0, 10.0]
+ACTION_DIM = 1
+OBS_SCALE = np.array([40.0, 8.0, 20.0, 10.0, 40.0, 8.0, 20.0, 10.0], dtype=np.float32)
 
 
-def clip(value: float, low: float, high: float) -> float:
-    """将数值限制在给定范围内。"""
-    return max(low, min(high, value))
+plt = None
 
 
-def safe_norm(dx: float, dy: float) -> float:
-    """计算二维距离，并避免除零。"""
-    return max(math.hypot(dx, dy), 1e-9)
+def require_matplotlib():
+    """延迟导入 matplotlib；训练和无图评价不需要该依赖。"""
+    global plt
+    if plt is None:
+        import matplotlib.pyplot as _plt
+        plt = _plt
+    return plt
 
 
-@dataclass
-class Vehicle:
-    """简化车辆状态。
-
-    为了让环境可独立运行，这里使用二维质点形式近似前轴点运动。
-    目标车只沿纵向运动，ego 车同时具有纵向和横向速度。
-    """
-
-    x: float
-    y: float
-    vx: float
-    vy: float = 0.0
-
-    def step(self, ax: float, ay: float, dt: float) -> None:
-        """使用半隐式 Euler 更新车辆状态。"""
-        self.vx += ax * dt
-        self.vy += ay * dt
-        self.x += self.vx * dt
-        self.y += self.vy * dt
+def _signed_safe(value, eps=1e-6):
+    """带符号除零保护。"""
+    if abs(value) < eps:
+        return eps if value >= 0.0 else -eps
+    return value
 
 
-def compute_gap_bias(gap: float, gap_dot: float, gap_safe: float = GAP_SAFE) -> float:
-    """计算底层客观偏置 b(t)。"""
-    return math.tanh(K_GAP * (gap - gap_safe) + K_VEL * gap_dot)
+class KinematicBicycleModel:
+    """后轴自行车模型，控制参考点为前轴中心。"""
+
+    def __init__(self, id, x=0.0, y=0.0, theta=0.0, v=0.0, delta=0.0, L=2.5, color="blue"):
+        self.id = id
+        self.x = x
+        self.y = y
+        self.theta = theta
+        self.v = v
+        self.delta = delta
+        self.L = L
+        self.color = color
+
+    def get_state(self):
+        return np.array([self.x, self.y, self.theta, self.v, self.delta], dtype=float)
+
+    def set_state(self, state):
+        self.x, self.y, self.theta, self.v, self.delta = np.asarray(state, dtype=float)
+        self.theta = (self.theta + np.pi) % (2.0 * np.pi) - np.pi
+        self.delta = np.clip(self.delta, -np.pi / 4.0, np.pi / 4.0)
+        self.v = max(0.0, self.v)
 
 
-def compute_rbf_u(
-    ego: Vehicle,
-    front: Vehicle,
-    rear: Vehicle,
-    sigma_d: float = SIGMA_D,
-    sigma_v: float = SIGMA_V,
-) -> Dict[str, float]:
-    """根据 ego 与 gap 中心的对齐程度计算手工 RBF 注意力 u(t)。"""
-    x_gap = 0.5 * (front.x + rear.x)
-    v_gap = 0.5 * (front.vx + rear.vx)
-    d_gap = x_gap - ego.x
-    dv_gap = ego.vx - v_gap
-    exponent = -0.5 * (d_gap / max(sigma_d, 1e-6)) ** 2 - 0.5 * (dv_gap / max(sigma_v, 1e-6)) ** 2
-    confidence = math.exp(clip(exponent, -700.0, 0.0))
+def front_position(state, L):
+    """前轴点位置。"""
+    x, y, theta, _, _ = state
+    return np.array([x + L * np.cos(theta), y + L * np.sin(theta)])
+
+
+def front_velocity(state, L):
+    """前轴点速度。"""
+    _, _, theta, vr, delta = state
+    tan_delta = np.tan(delta)
+    return vr * np.array([
+        np.cos(theta) - np.sin(theta) * tan_delta,
+        np.sin(theta) + np.cos(theta) * tan_delta,
+    ])
+
+
+def rear_state_derivative(state, a, omega, L):
+    """后轴自行车模型状态导数。"""
+    _, _, theta, vr, delta = state
+    theta_dot = vr / L * (delta if abs(delta) < 1e-3 else np.tan(delta))
+    return np.array([
+        vr * np.cos(theta),
+        vr * np.sin(theta),
+        theta_dot,
+        a,
+        omega,
+    ])
+
+
+def compute_gap_bias_bt(gap, gap_dot, gap_safe, k_gap=0.25, k_vel=0.45):
+    """由 gap 和 gap_dot 计算底层客观偏置 b(t)。"""
+    return float(np.tanh(k_gap * (gap - gap_safe) + k_vel * gap_dot))
+
+
+def compute_gap_opinion_z_dot(z, b_t, u_t, damping=1.0, alpha=2.0):
+    """新意见动力学：z_dot = -d*z + u(t)*tanh(alpha*z) + b(t)。"""
+    return float(-damping * z + u_t * np.tanh(alpha * z) + b_t)
+
+
+def compute_gap_confidence_attention_ut(ego_state, front_state, rear_state, ego_l, front_l, rear_l):
+    """使用 RBF 置信度计算手工设计的 u(t)。"""
+    ego_pos = front_position(ego_state, ego_l)
+    front_pos = front_position(front_state, front_l)
+    rear_pos = front_position(rear_state, rear_l)
+    ego_vel = front_velocity(ego_state, ego_l)
+    front_vel = front_velocity(front_state, front_l)
+    rear_vel = front_velocity(rear_state, rear_l)
+    x_gap = 0.5 * (front_pos[0] + rear_pos[0])
+    v_gap = 0.5 * (front_vel[0] + rear_vel[0])
+    d_gap = float(x_gap - ego_pos[0])
+    dv_gap = float(ego_vel[0] - v_gap)
+    exponent = -0.5 * (d_gap / max(SIGMA_D, 1e-6)) ** 2 - 0.5 * (dv_gap / max(SIGMA_V, 1e-6)) ** 2
+    confidence = float(np.exp(np.clip(exponent, -700.0, 0.0)))
     return {
-        "x_gap": x_gap,
-        "v_gap": v_gap,
+        "x_gap": float(x_gap),
+        "v_gap": float(v_gap),
         "d_gap": d_gap,
         "dv_gap": dv_gap,
         "confidence": confidence,
-        "u_t": U_BASE + U_AMP * confidence,
+        "u_t": float(U_BASE + U_AMP * confidence),
     }
 
 
-def normalized_u(u_t: float) -> float:
-    """把真实 u(t) 映射回 [-1, 1]，用于 reward 的动作平滑项。"""
-    return clip(2.0 * (u_t - U_LOW) / max(U_HIGH - U_LOW, 1e-9) - 1.0, -1.0, 1.0)
+def compute_gap_confidence_signals_from_states(ego_state, front_state, rear_state, ego_l, front_l, rear_l, gap_safe):
+    """返回 b(t)、RBF u(t) 与 gap 对齐信号。"""
+    front_pos = front_position(front_state, front_l)
+    rear_pos = front_position(rear_state, rear_l)
+    front_vel = front_velocity(front_state, front_l)
+    rear_vel = front_velocity(rear_state, rear_l)
+    gap = float(front_pos[0] - rear_pos[0])
+    gap_dot = float(front_vel[0] - rear_vel[0])
+    b_t = compute_gap_bias_bt(gap, gap_dot, gap_safe, k_gap=K_GAP, k_vel=K_VEL)
+    attention = compute_gap_confidence_attention_ut(ego_state, front_state, rear_state, ego_l, front_l, rear_l)
+    return {"gap": gap, "gap_dot": gap_dot, "b_t": b_t, **attention}
+
+
+class EgoVehicleOdeModel(KinematicBicycleModel):
+    """ego 车辆模型，复制原 models_ode 中控制相关参数和函数。"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.z = 0.01
+        self.mu = 0.0
+        self.r = 1.5
+        self.rho = np.array([1.0, 0.0])
+        self.eta = np.array([0.0, 1.0])
+        self.k_mu = 5.0
+        self.k = 20.0
+        self.k_w = 40.0
+        self.eps = 0.1
+        self.eps2 = 0.5
+        self.k_p = 0.7
+        self.k_v = 2.0
+        self.k_o = 1.0
+        self.r_rho = -10.0
+        self.r_eta = -4.0
+
+    def read_sensor_from_states(self, ego_state, target_states):
+        p_ego = front_position(ego_state, self.L)
+        v_ego = front_velocity(ego_state, self.L)
+        sensor_data = {}
+        for name in ("veh1", "veh2"):
+            target = target_states[name]
+            p_target = front_position(target, target_states[name + "_L"])
+            v_target = front_velocity(target, target_states[name + "_L"])
+            rel_p = p_target - p_ego
+            rel_v = v_target - v_ego
+            sensor_data[name] = {"rel_p": rel_p, "rel_v": rel_v, "dist": np.linalg.norm(rel_p)}
+        return sensor_data
+
+    def compute_mu_dot(self, sensor_data, mu):
+        dp1 = -sensor_data["veh1"]["rel_p"]
+        dp2 = -sensor_data["veh2"]["rel_p"]
+        g31 = dp1 / _signed_safe(np.linalg.norm(dp1))
+        g32 = dp2 / _signed_safe(np.linalg.norm(dp2))
+        e21 = sensor_data["veh2"]["rel_p"] - sensor_data["veh1"]["rel_p"]
+        v21 = sensor_data["veh2"]["rel_v"] - sensor_data["veh1"]["rel_v"]
+        d21 = np.linalg.norm(e21) - self.r
+        g21 = e21 / _signed_safe(np.linalg.norm(e21))
+        phi21 = np.dot(g21, v21) / _signed_safe(d21)
+        tanh_arg = -self.k * np.dot(self.rho, g31) * np.dot(self.rho, g32) * (d21 - 2.0 * self.r) * (phi21 + self.eps2)
+        return -self.k_mu * mu + np.tanh(tanh_arg)
+
+    def compute_z_dot(self, z, mu):
+        return (1.0 / self.eps) * (-z * z + mu * z)
+
+    def compute_nominal_control(self, sensor_data, z):
+        w = np.tanh(self.k_w * z)
+        e31d = self.rho * self.r_rho + self.eta * ((1.0 - w) * self.r_eta)
+        e31 = -sensor_data["veh1"]["rel_p"]
+        v31 = -sensor_data["veh1"]["rel_v"]
+        u_n = -self.k_p * (e31 - e31d) - self.k_v * v31
+        return u_n, e31d
+
+    def compute_safe_control(self, sensor_data):
+        u_c = np.zeros(2)
+        safe_distances = {}
+        for name in ("veh1", "veh2"):
+            e3j = -sensor_data[name]["rel_p"]
+            v3j = -sensor_data[name]["rel_v"]
+            dist = np.linalg.norm(e3j)
+            g3j = e3j / _signed_safe(dist)
+            d3j = dist - self.r
+            phi3j = np.dot(g3j, v3j) / _signed_safe(d3j)
+            u_c += -self.k_o * g3j * phi3j
+            safe_distances[name] = d3j
+        return u_c, safe_distances
+
+    def u_to_physical_inputs(self, u, ego_state):
+        _, _, theta, vr, delta = ego_state
+        tan_delta = np.tan(delta)
+        sec2_delta = 1.0 / (np.cos(delta) ** 2)
+        vr_for_a = vr if abs(vr) >= 1e-6 else 1e-6
+        a_matrix = np.array([
+            [np.cos(theta) - np.sin(theta) * tan_delta, -vr_for_a * np.sin(theta) * sec2_delta],
+            [np.sin(theta) + np.cos(theta) * tan_delta, vr_for_a * np.cos(theta) * sec2_delta],
+        ])
+        b_vector = -(vr * vr / self.L) * np.array([
+            np.sin(theta) * tan_delta + np.cos(theta) * tan_delta * tan_delta,
+            -np.cos(theta) * tan_delta + np.sin(theta) * tan_delta * tan_delta,
+        ])
+        try:
+            return np.linalg.solve(a_matrix, u - b_vector)
+        except np.linalg.LinAlgError:
+            return np.zeros(2)
+
+    def control_derivatives(self, ego_state, z, mu, target_states):
+        sensor_data = self.read_sensor_from_states(ego_state, target_states)
+        mu_dot = self.compute_mu_dot(sensor_data, mu)
+        z_dot = self.compute_z_dot(z, mu)
+        u_n, e31d = self.compute_nominal_control(sensor_data, z)
+        u_c, safe_distances = self.compute_safe_control(sensor_data)
+        a, omega = self.u_to_physical_inputs(u_n + u_c, ego_state)
+        return {
+            "sensor_data": sensor_data,
+            "mu_dot": mu_dot,
+            "z_dot": z_dot,
+            "u_n": u_n,
+            "u_c": u_c,
+            "u_total": u_n + u_c,
+            "e31d": e31d,
+            "a": a,
+            "omega": omega,
+            "d1": safe_distances["veh1"],
+            "d2": safe_distances["veh2"],
+        }
+
+
+class Main7GapFollowingDynamics:
+    """复制 main7：20s 前正弦后车，20s 后后车跟踪 20m gap。"""
+
+    def __init__(self, veh1, veh2, veh3, a_vel=4.0, period=6.0, yield_time=20.0, desired_gap=20.0):
+        self.veh1 = veh1
+        self.veh2 = veh2
+        self.veh3 = veh3
+        self.a_vel = a_vel
+        self.period = period
+        self.yield_time = yield_time
+        self.desired_gap = desired_gap
+
+    def _target_states(self, state):
+        return {"veh1": state[0:5], "veh2": state[5:10], "veh1_L": self.veh1.L, "veh2_L": self.veh2.L}
+
+    def pack_state(self):
+        return np.concatenate([self.veh1.get_state(), self.veh2.get_state(), self.veh3.get_state(), np.array([0.01, 0.0])])
+
+    def apply_state(self, state):
+        self.veh1.set_state(state[0:5])
+        self.veh2.set_state(state[5:10])
+        self.veh3.set_state(state[10:15])
+
+    def _veh2_acceleration(self, t, veh1_state, veh2_state):
+        if t <= self.yield_time:
+            wave_omega = 2.0 * np.pi / self.period
+            return self.a_vel * wave_omega * np.cos(wave_omega * t)
+        p1 = front_position(veh1_state, self.veh1.L)
+        p2 = front_position(veh2_state, self.veh2.L)
+        v1 = front_velocity(veh1_state, self.veh1.L)
+        v2 = front_velocity(veh2_state, self.veh2.L)
+        gap = p1[0] - p2[0]
+        gap_error = gap - self.desired_gap
+        closing_speed = v2[0] - v1[0]
+        return float(np.clip(0.35 * gap_error - 1.1 * closing_speed, -5.0, 2.0))
+
+
+class Main11MoveDynamics(Main7GapFollowingDynamics):
+    """复制 main11-move：最新 RBF u(t) 与新 z 公式。"""
+
+    def __init__(self, *args, z_new0=0.01, gap_safe=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.z_new = float(z_new0)
+        self.gap_safe = float(self.desired_gap if gap_safe is None else gap_safe)
+
+    def pack_state(self):
+        return np.concatenate([super().pack_state(), np.array([self.z_new])])
+
+    def apply_state(self, state):
+        super().apply_state(state[:17])
+        self.z_new = float(state[17])
+
+    def _gap_signals(self, state):
+        return compute_gap_confidence_signals_from_states(
+            state[10:15], state[0:5], state[5:10], self.veh3.L, self.veh1.L, self.veh2.L, self.gap_safe
+        )
+
+    def _new_z_control(self, ego_state, target_states, z_new):
+        sensor_data = self.veh3.read_sensor_from_states(ego_state, target_states)
+        u_n, e31d = self.veh3.compute_nominal_control(sensor_data, z_new)
+        u_c, safe_distances = self.veh3.compute_safe_control(sensor_data)
+        u_total = u_n + u_c
+        a, omega = self.veh3.u_to_physical_inputs(u_total, ego_state)
+        return {
+            "sensor_data": sensor_data,
+            "u_n": u_n,
+            "u_c": u_c,
+            "u_total": u_total,
+            "e31d": e31d,
+            "a": a,
+            "omega": omega,
+            "d1": safe_distances["veh1"],
+            "d2": safe_distances["veh2"],
+        }
+
+    def diagnostics(self, state):
+        z_new = state[17]
+        old_diag = self.veh3.control_derivatives(state[10:15], state[15], state[16], self._target_states(state))
+        new_diag = self._new_z_control(state[10:15], self._target_states(state), z_new)
+        gap_signals = self._gap_signals(state)
+        z_new_dot = compute_gap_opinion_z_dot(z_new, gap_signals["b_t"], gap_signals["u_t"], damping=Z_DAMPING, alpha=Z_ALPHA)
+        return {
+            **new_diag,
+            "old_z_dot": old_diag["z_dot"],
+            "old_mu_dot": old_diag["mu_dot"],
+            "gap": gap_signals["gap"],
+            "gap_dot": gap_signals["gap_dot"],
+            "b_t": gap_signals["b_t"],
+            "u_t": gap_signals["u_t"],
+            "d_gap": gap_signals["d_gap"],
+            "dv_gap": gap_signals["dv_gap"],
+            "confidence": gap_signals["confidence"],
+            "x_gap": gap_signals["x_gap"],
+            "v_gap": gap_signals["v_gap"],
+            "z_new_dot": z_new_dot,
+        }
+
+
+class Main11SacUDynamics(Main11MoveDynamics):
+    """复制 main11_sac_train：SAC 直接提供 u(t)。"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.action_u_t = 0.2
+
+    def set_action_u_t(self, u_t):
+        self.action_u_t = float(np.clip(u_t, U_LOW, U_HIGH))
+
+    def rhs(self, t, state):
+        veh1_state = state[0:5]
+        veh2_state = state[5:10]
+        ego_state = state[10:15]
+        z_old = state[15]
+        mu = state[16]
+        z_new = state[17]
+        a1, omega1 = 0.0, 0.0
+        a2, omega2 = self._veh2_acceleration(t, veh1_state, veh2_state), 0.0
+        old_control = self.veh3.control_derivatives(ego_state, z_old, mu, self._target_states(state))
+        gap_signals = self._gap_signals(state)
+        z_new_dot = compute_gap_opinion_z_dot(z_new, gap_signals["b_t"], self.action_u_t, damping=Z_DAMPING, alpha=Z_ALPHA)
+        new_control = self._new_z_control(ego_state, self._target_states(state), z_new)
+        return np.concatenate([
+            rear_state_derivative(veh1_state, a1, omega1, self.veh1.L),
+            rear_state_derivative(veh2_state, a2, omega2, self.veh2.L),
+            rear_state_derivative(ego_state, new_control["a"], new_control["omega"], self.veh3.L),
+            np.array([old_control["z_dot"], old_control["mu_dot"], z_new_dot]),
+        ])
+
+    def diagnostics(self, state):
+        diag = super().diagnostics(state)
+        formula_u_t = diag["u_t"]
+        diag["formula_u_t"] = formula_u_t
+        diag["u_t"] = self.action_u_t
+        diag["z_new_dot"] = compute_gap_opinion_z_dot(state[17], diag["b_t"], self.action_u_t, damping=Z_DAMPING, alpha=Z_ALPHA)
+        return diag
+
+
+def get_veh12_gap(state, veh1_l, veh2_l):
+    """前后目标车前轴点纵向 gap。"""
+    p1 = front_position(state[0:5], veh1_l)
+    p2 = front_position(state[5:10], veh2_l)
+    return float(p1[0] - p2[0])
+
+
+def draw_environment(ax, lane_width=LANE_WIDTH):
+    """绘制两车道道路。"""
+    ax.axhline(0.0, color="black", linewidth=1.2)
+    ax.axhline(lane_width, color="gray", linestyle="--", linewidth=1.0)
+    ax.axhline(2.0 * lane_width, color="black", linewidth=1.2)
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+
+
+def draw_car(ax, car, wheelbase=1.5):
+    """绘制圆角矩形近似车辆。"""
+    require_matplotlib()
+    from matplotlib.patches import FancyBboxPatch
+    length = 2.0 * wheelbase
+    width = 1.2
+    patch = FancyBboxPatch(
+        (car.x - length / 2.0, car.y - width / 2.0),
+        length,
+        width,
+        boxstyle="round,pad=0.02,rounding_size=0.25",
+        facecolor=car.color,
+        edgecolor="black",
+        linewidth=1.0,
+        alpha=0.9,
+    )
+    ax.add_patch(patch)
+    ax.text(car.x, car.y, car.id.split()[0], ha="center", va="center", fontsize=8)
+
+
+def make_car_from_state(car_id, state, color, wheelbase):
+    """从状态生成绘图车辆对象。"""
+    car = KinematicBicycleModel(id=car_id, L=wheelbase, color=color)
+    car.set_state(state)
+    return car
+
+
+def compute_rbf_u(ego, front, rear):
+    """给对比脚本使用的 RBF u(t) 接口。"""
+    return compute_gap_confidence_attention_ut(ego.get_state(), front.get_state(), rear.get_state(), ego.L, front.L, rear.L)
 
 
 class SingleGapEnv:
-    """单 gap 并道环境。
+    """与 main12_sac_train.Main12SacUEnv 等价的独立环境。"""
 
-    step(u_t) 输入真实注意力 u(t)，返回 obs, reward, done, info。
-    obs 为 8 维相对位置和速度，与最新 SAC 训练设置保持一致。
-    """
-
-    def __init__(self, seed: Optional[int] = None, sim_time: float = SIM_TIME, dt: float = DT):
-        self.rng = random.Random(seed)
+    def __init__(self, seed: Optional[int] = None, render: bool = False, sim_time: float = SIM_TIME, dt: float = DT):
+        self.rng = np.random.default_rng(seed)
         self.seed = seed
+        self.render_enabled = render
         self.sim_time = sim_time
         self.dt = dt
+        self.lane_width = LANE_WIDTH
+        self.vehicle_l = VEHICLE_L
+        self.original_lane_y = ORIGINAL_LANE_Y
+        self.target_lane_y = TARGET_LANE_Y
+        self.desired_gap = DESIRED_GAP
+        self.gap_safe = GAP_SAFE
+        self.obs_scale = OBS_SCALE
+        self.fig = None
+        self.ax_anim = None
+        self.ax_z = None
+        self.ax_dist = None
         self.reset(seed=seed)
 
-    def reset(self, seed: Optional[int] = None, ego_x0: Optional[float] = None) -> List[float]:
-        """重置环境，可指定随机种子或 ego 初始位置。"""
+    def sample_ego_x(self):
+        return float(EGO_X_BASE + self.rng.uniform(-EGO_X_RANDOM_RANGE, EGO_X_RANDOM_RANGE))
+
+    def reset(self, seed: Optional[int] = None, ego_x0: Optional[float] = None):
         if seed is not None:
-            self.rng.seed(seed)
+            self.rng = np.random.default_rng(seed)
             self.seed = seed
         if ego_x0 is None:
-            ego_x0 = EGO_X_BASE + self.rng.uniform(-EGO_X_RANDOM_RANGE, EGO_X_RANDOM_RANGE)
-
-        self.front = Vehicle(FRONT_X0, TARGET_LANE_Y, TARGET_SPEED)
-        self.rear = Vehicle(REAR_X0, TARGET_LANE_Y, TARGET_SPEED)
-        self.ego = Vehicle(ego_x0, ORIGINAL_LANE_Y, TARGET_SPEED)
+            ego_x0 = self.sample_ego_x()
+        self.veh1 = KinematicBicycleModel("Veh 1 (Leader)", x=FRONT_X0, y=self.target_lane_y, v=TARGET_SPEED, L=self.vehicle_l, color="lightblue")
+        self.veh2 = KinematicBicycleModel("Veh 2 (Gap Control)", x=REAR_X0, y=self.target_lane_y, v=TARGET_SPEED, L=self.vehicle_l, color="royalblue")
+        self.ego = EgoVehicleOdeModel("Veh 3 (Ego)", x=ego_x0, y=self.original_lane_y, v=TARGET_SPEED, L=self.vehicle_l, color="lightgreen")
+        self.front = self.veh1
+        self.rear = self.veh2
+        self.dynamics = Main11SacUDynamics(self.veh1, self.veh2, self.ego, desired_gap=self.desired_gap, gap_safe=self.gap_safe)
+        self.collision_radius = self.ego.r
+        self.state = self.dynamics.pack_state()
         self.t = 0.0
-        self.z = Z0
-        self.prev_progress = self.lane_progress()
-        self.prev_u_norm = normalized_u(U_BASE)
-        self.prev_lateral_velocity = self.ego.vy
+        self.prev_lane_progress = self._lane_progress()
+        self.prev_action = np.zeros(ACTION_DIM, dtype=np.float32)
+        self.prev_lateral_velocity = front_velocity(self.state[10:15], self.ego.L)[1]
+        self.t_hist, self.z_hist, self.u_hist, self.formula_u_hist, self.bt_hist = [], [], [], [], []
+        self.dist1_hist, self.dist2_hist, self.veh12_gap_hist = [], [], []
         self.ego_x0 = ego_x0
         return self.observation()
 
-    def observation(self) -> List[float]:
-        """返回 8 维相对状态：ego 相对于前车和后车的位置、速度。"""
-        raw = [
-            self.front.x - self.ego.x,
-            self.front.y - self.ego.y,
-            self.front.vx - self.ego.vx,
-            self.front.vy - self.ego.vy,
-            self.rear.x - self.ego.x,
-            self.rear.y - self.ego.y,
-            self.rear.vx - self.ego.vx,
-            self.rear.vy - self.ego.vy,
-        ]
-        return [raw[i] / OBS_SCALE[i] for i in range(len(raw))]
+    def observation(self):
+        return self._get_obs().tolist()
 
-    def lane_progress(self) -> float:
-        """计算并道进度，0 表示原车道，1 表示目标车道。"""
-        return clip((self.ego.y - ORIGINAL_LANE_Y) / (TARGET_LANE_Y - ORIGINAL_LANE_Y), 0.0, 1.0)
+    def _get_obs(self):
+        diag = self.dynamics.diagnostics(self.state)
+        rel1 = diag["sensor_data"]["veh1"]
+        rel2 = diag["sensor_data"]["veh2"]
+        ego_rel_pos_1 = -rel1["rel_p"]
+        ego_rel_vel_1 = -rel1["rel_v"]
+        ego_rel_pos_2 = -rel2["rel_p"]
+        ego_rel_vel_2 = -rel2["rel_v"]
+        obs = np.concatenate([ego_rel_pos_1, ego_rel_vel_1, ego_rel_pos_2, ego_rel_vel_2]).astype(np.float32)
+        return np.clip(obs / self.obs_scale, -5.0, 5.0).astype(np.float32)
 
-    def gap(self) -> float:
-        """目标前后车之间的纵向 gap。"""
-        return self.front.x - self.rear.x
+    def _lane_progress(self):
+        relative_y = (self.ego.y - self.original_lane_y) / (self.target_lane_y - self.original_lane_y)
+        return float(np.clip(relative_y, 0.0, 1.0))
 
-    def gap_dot(self) -> float:
-        """目标前后车之间 gap 的变化率。"""
-        return self.front.vx - self.rear.vx
+    def _veh12_gap(self):
+        return get_veh12_gap(self.state[:17], self.veh1.L, self.veh2.L)
 
-    def rear_acceleration(self, t: float) -> float:
-        """后车分段加速度：20s 前正弦运动，20s 后跟踪 20m gap。"""
-        if t <= YIELD_TIME:
-            omega = 2.0 * math.pi / SINE_PERIOD
-            return SINE_VEL_AMP * omega * math.cos(omega * t)
-        gap_error = self.gap() - DESIRED_GAP
-        closing_speed = self.rear.vx - self.front.vx
-        return clip(0.35 * gap_error - 1.1 * closing_speed, REAR_ACCEL_MIN, REAR_ACCEL_MAX)
+    def _is_success(self, lane_progress, min_distance):
+        return lane_progress > 0.95 and abs(self.ego.y - self.target_lane_y) < 0.2 and min_distance > 1.5 * self.collision_radius
 
-    def min_ego_distance(self) -> float:
-        """ego 到两辆目标车的最小欧氏距离。"""
-        d_front = math.hypot(self.ego.x - self.front.x, self.ego.y - self.front.y)
-        d_rear = math.hypot(self.ego.x - self.rear.x, self.ego.y - self.rear.y)
-        return min(d_front, d_rear)
-
-    def safety_acceleration(self) -> Tuple[float, float]:
-        """简化连续避障项，距离过近时给 ego 一个排斥加速度。"""
-        ux, uy = 0.0, 0.0
-        safe_distance = 2.5 * COLLISION_RADIUS
-        for target in (self.front, self.rear):
-            rx = self.ego.x - target.x
-            ry = self.ego.y - target.y
-            dist = safe_norm(rx, ry)
-            if dist < safe_distance:
-                strength = EGO_K_O * ((safe_distance - dist) / safe_distance) ** 2
-                ux += strength * rx / dist
-                uy += strength * ry / dist
-        return ux, uy
-
-    def control_ego(self, u_t: float) -> Dict[str, float]:
-        """根据 u(t)、b(t)、z(t) 生成 ego 控制输入。"""
-        gap = self.gap()
-        gap_dot = self.gap_dot()
-        b_t = compute_gap_bias(gap, gap_dot)
-        rbf = compute_rbf_u(self.ego, self.front, self.rear)
-        u_t = clip(float(u_t), U_LOW, U_HIGH)
-
-        z_dot = -Z_DAMPING * self.z + u_t * math.tanh(Z_ALPHA * self.z) + b_t
-        self.z += self.dt * z_dot
-
-        w = math.tanh(EGO_K_W * self.z)
-        gap_center_x = 0.5 * (self.front.x + self.rear.x)
-        gap_center_v = 0.5 * (self.front.vx + self.rear.vx)
-        target_x = gap_center_x
-        target_y = TARGET_LANE_Y + (1.0 - w) * EGO_R_ETA
-
-        ax_safe, ay_safe = self.safety_acceleration()
-        ax = -EGO_K_P * (self.ego.x - target_x) - EGO_K_V * (self.ego.vx - gap_center_v) + ax_safe
-        ay = -EGO_K_P * (self.ego.y - target_y) - EGO_K_V * self.ego.vy + ay_safe
-        ax = clip(ax, -EGO_ACCEL_LIMIT, EGO_ACCEL_LIMIT)
-        ay = clip(ay, -EGO_ACCEL_LIMIT, EGO_ACCEL_LIMIT)
-
-        return {
-            "ax": ax,
-            "ay": ay,
-            "b_t": b_t,
-            "u_t": u_t,
-            "formula_u_t": rbf["u_t"],
-            "z": self.z,
-            "z_dot": z_dot,
-            "gap": gap,
-            "gap_dot": gap_dot,
-            **rbf,
-        }
-
-    def step(self, u_t: float) -> Tuple[List[float], float, bool, Dict[str, float]]:
-        """推进一步仿真。"""
-        diag = self.control_ego(u_t)
-
-        # 目标车运动：前车匀速，后车按分段规则运动。
-        self.front.step(0.0, 0.0, self.dt)
-        self.rear.step(self.rear_acceleration(self.t), 0.0, self.dt)
-        self.ego.step(diag["ax"], diag["ay"], self.dt)
-        self.ego.vx = max(0.0, self.ego.vx)
+    def step(self, u_t: float):
+        action = np.array([2.0 * (float(u_t) - U_LOW) / (U_HIGH - U_LOW) - 1.0], dtype=np.float32)
+        action = np.clip(action, -1.0, 1.0)
+        action_u_t = float(U_LOW + 0.5 * (action[0] + 1.0) * (U_HIGH - U_LOW))
+        self.dynamics.set_action_u_t(action_u_t)
+        sol = solve_ivp(self.dynamics.rhs, (self.t, self.t + self.dt), self.state, method="RK45", rtol=1e-6, atol=1e-8, max_step=self.dt / 5.0)
+        if not sol.success:
+            raise RuntimeError(sol.message)
+        self.state = sol.y[:, -1]
+        self.dynamics.apply_state(self.state)
+        self.state = self.dynamics.pack_state()
         self.t += self.dt
 
-        progress = self.lane_progress()
-        progress_delta = progress - self.prev_progress
-        ego_min_distance = self.min_ego_distance()
-        env_min_distance = min(ego_min_distance, self.gap())
-        opportunity = 1.0 if self.z > 0.1 or self.gap() > GAP_SAFE else 0.0
-        lateral_flip = (
-            self.prev_lateral_velocity * self.ego.vy < 0.0
+        diag = self.dynamics.diagnostics(self.state)
+        dist1 = diag["sensor_data"]["veh1"]["dist"]
+        dist2 = diag["sensor_data"]["veh2"]["dist"]
+        veh12_gap = self._veh12_gap()
+        ego_min_distance = min(dist1, dist2)
+        env_min_distance = min(ego_min_distance, veh12_gap)
+        lane_progress = self._lane_progress()
+        progress_delta = lane_progress - self.prev_lane_progress
+        opportunity = 1.0 if self.state[16] > 0.1 or veh12_gap > self.gap_safe else 0.0
+        current_lateral_velocity = front_velocity(self.state[10:15], self.ego.L)[1]
+        lateral_direction_flip = (
+            self.prev_lateral_velocity * current_lateral_velocity < 0.0
             and abs(self.prev_lateral_velocity) > 1e-3
-            and abs(self.ego.vy) > 1e-3
+            and abs(current_lateral_velocity) > 1e-3
         )
-        safe_margin = 2.5 * COLLISION_RADIUS
-
-        progress_reward = 80.0 * progress_delta
-        lane_progress_reward = 0.15 * progress
-        opportunity_reward = 40.0 * opportunity * max(progress_delta, 0.0)
-        reverse_progress_penalty = -30.0 * max(-progress_delta, 0.0)
-        hesitation_penalty = -0.25 * opportunity * (1.0 - progress)
-        time_penalty = -0.05 * (1.0 - progress)
-        action_smooth_penalty = -0.5 * (normalized_u(diag["u_t"]) - self.prev_u_norm) ** 2
-        direction_flip_penalty = -2.0 if lateral_flip else 0.0
-        safety_penalty = -20.0 * max(0.0, (safe_margin - ego_min_distance) / safe_margin) ** 2
-
-        collided = env_min_distance < COLLISION_RADIUS
-        success = progress > 0.95 and abs(self.ego.y - TARGET_LANE_Y) < 0.2 and ego_min_distance > 1.5 * COLLISION_RADIUS
-        collision_penalty = -1000.0 if collided else 0.0
-        success_bonus = (100.0 - 2.0 * self.t) if success else 0.0
-
+        safe_margin = 2.5 * self.collision_radius
         reward_terms = {
-            "progress": progress_reward,
-            "lane_progress": lane_progress_reward,
-            "opportunity": opportunity_reward,
-            "reverse_progress": reverse_progress_penalty,
-            "hesitation": hesitation_penalty,
-            "time": time_penalty,
-            "action_smooth": action_smooth_penalty,
-            "direction_flip": direction_flip_penalty,
-            "safety": safety_penalty,
-            "collision": collision_penalty,
-            "success": success_bonus,
+            "progress": 80.0 * progress_delta,
+            "lane_progress": 0.15 * lane_progress,
+            "opportunity": 40.0 * opportunity * max(progress_delta, 0.0),
+            "reverse_progress": -30.0 * max(-progress_delta, 0.0),
+            "hesitation": -0.25 * opportunity * (1.0 - lane_progress),
+            "time": -0.05 * (1.0 - lane_progress),
+            "action_smooth": -0.5 * float(np.sum((action - self.prev_action) ** 2)),
+            "direction_flip": -2.0 if lateral_direction_flip else 0.0,
+            "safety": -20.0 * max(0.0, (safe_margin - ego_min_distance) / safe_margin) ** 2,
         }
-        reward = sum(reward_terms.values())
+        collided = env_min_distance < self.collision_radius
+        success = self._is_success(lane_progress, ego_min_distance)
+        reward_terms["collision"] = -1000.0 if collided else 0.0
+        reward_terms["success"] = (100.0 - 2.0 * self.t) if success else 0.0
+        reward = float(sum(reward_terms.values()))
 
-        self.prev_progress = progress
-        self.prev_u_norm = normalized_u(diag["u_t"])
-        self.prev_lateral_velocity = self.ego.vy
-
+        self.prev_lane_progress = lane_progress
+        self.prev_action = action.copy()
+        self.prev_lateral_velocity = current_lateral_velocity
+        done = collided or success or self.t >= self.sim_time
         info = {
-            **diag,
-            "time": self.t,
-            "ego_x": self.ego.x,
-            "ego_y": self.ego.y,
-            "ego_vx": self.ego.vx,
-            "ego_vy": self.ego.vy,
-            "lane_progress": progress,
+            "u_t": action_u_t,
+            "formula_u_t": diag["formula_u_t"],
+            "b_t": diag["b_t"],
+            "z_new": self.state[17],
+            "z": self.state[17],
+            "d_gap": diag["d_gap"],
+            "dv_gap": diag["dv_gap"],
+            "confidence": diag["confidence"],
+            "lane_progress": lane_progress,
+            "progress": lane_progress,
+            "dist1": dist1,
+            "dist2": dist2,
+            "veh12_gap": veh12_gap,
+            "gap": veh12_gap,
             "min_distance": ego_min_distance,
-            "env_min_distance": env_min_distance,
             "collided": collided,
+            "collision": collided,
             "success": success,
+            "time": self.t,
             "reward": reward,
             "reward_terms": reward_terms,
+            "ego_x": self.ego.x,
+            "ego_y": self.ego.y,
+            "ego_vx": self.ego.v,
+            "ego_vy": current_lateral_velocity,
         }
-        done = collided or success or self.t >= self.sim_time
+        self.t_hist.append(self.t)
+        self.z_hist.append(self.state[17])
+        self.u_hist.append(action_u_t)
+        self.formula_u_hist.append(diag["formula_u_t"])
+        self.bt_hist.append(diag["b_t"])
+        self.dist1_hist.append(dist1)
+        self.dist2_hist.append(dist2)
+        self.veh12_gap_hist.append(veh12_gap)
+        if self.render_enabled:
+            self.render(info)
         return self.observation(), reward, done, info
 
+    def render(self, info):
+        require_matplotlib()
+        if self.fig is None:
+            plt.ion()
+            self.fig = plt.figure(figsize=(14, 8))
+            self.ax_anim = plt.subplot(2, 1, 1)
+            self.ax_z = plt.subplot(2, 2, 3)
+            self.ax_dist = plt.subplot(2, 2, 4)
+        self.ax_anim.cla()
+        draw_environment(self.ax_anim, self.lane_width)
+        draw_car(self.ax_anim, self.veh1, wheelbase=self.collision_radius)
+        draw_car(self.ax_anim, self.veh2, wheelbase=self.collision_radius)
+        draw_car(self.ax_anim, self.ego, wheelbase=self.collision_radius)
+        self.ax_anim.set_xlim(self.ego.x - 15, self.ego.x + 45)
+        self.ax_anim.set_ylim(-2, self.lane_width * 2 + 2)
+        self.ax_anim.set_aspect("equal")
+        title = f"Time: {self.t:.2f}s | Final Single-Gap Env"
+        if info["collided"]:
+            title += " | COLLISION"
+        if info["success"]:
+            title += " | SUCCESS"
+        self.ax_anim.set_title(title)
 
-def run_episode(
-    seed: Optional[int] = None,
-    policy: Optional[Callable[[List[float], Dict[str, float]], float]] = None,
-    csv_path: Optional[str] = None,
-) -> Dict[str, float]:
-    """运行一次单 gap 仿真。
+        self.ax_z.cla()
+        self.ax_z.plot(self.t_hist, self.z_hist, "m-", linewidth=2.5, label="New Formula z")
+        self.ax_z.plot(self.t_hist, self.u_hist, "purple", linewidth=1.8, label="Input u(t)")
+        self.ax_z.plot(self.t_hist, self.formula_u_hist, "orange", linestyle="--", linewidth=1.8, label="RBF Formula u(t)")
+        self.ax_z.plot(self.t_hist, self.bt_hist, "g--", linewidth=1.8, label="b(t)")
+        self.ax_z.axhline(0, color="gray", linestyle="--")
+        self.ax_z.axvline(20.0, color="black", linestyle=":", linewidth=1.5, label="Gap Control Starts")
+        self.ax_z.set_xlim(0, self.sim_time)
+        self.ax_z.set_title("Opinion and Attention")
+        self.ax_z.legend(loc="upper left")
+        self.ax_z.grid(True)
 
-    policy 接收 observation 和上一步诊断信息，返回真实 u(t)。若不提供，则使用 RBF u(t)。
-    """
-    env = SingleGapEnv(seed=seed)
-    rows: List[Dict[str, float]] = []
+        self.ax_dist.cla()
+        self.ax_dist.plot(self.t_hist, self.dist1_hist, "purple", linewidth=2, label="Distance to Veh 1")
+        self.ax_dist.plot(self.t_hist, self.dist2_hist, "red", linewidth=2, label="Distance to Veh 2")
+        self.ax_dist.plot(self.t_hist, self.veh12_gap_hist, "gray", linestyle="-.", linewidth=2, label="Veh1-Veh2 Gap")
+        self.ax_dist.axhline(self.collision_radius, color="black", linestyle="--", linewidth=2, label=f"Collision r={self.collision_radius:g}m")
+        self.ax_dist.axhline(self.gap_safe, color="orange", linestyle="--", linewidth=1.8, label="Safe Gap")
+        self.ax_dist.axhline(self.desired_gap, color="green", linestyle=":", linewidth=2, label="Target Gap 20m")
+        self.ax_dist.axvline(20.0, color="black", linestyle=":", linewidth=1.5)
+        self.ax_dist.set_xlim(0, self.sim_time)
+        upper = max([self.collision_radius * 2.0, self.desired_gap * 1.2, *self.dist1_hist, *self.dist2_hist, *self.veh12_gap_hist])
+        self.ax_dist.set_ylim(0, upper * 1.1)
+        self.ax_dist.set_title("Relative Distance Monitoring")
+        self.ax_dist.legend(loc="upper right")
+        self.ax_dist.grid(True)
+        plt.pause(0.001)
+
+
+def run_episode(seed: Optional[int] = None, policy: Optional[Callable[[List[float], Dict[str, float]], float]] = None, csv_path: Optional[str] = None, render: bool = False):
+    """运行一次单 gap 仿真；policy 输入 obs/info，输出真实 u(t)。"""
+    env = SingleGapEnv(seed=seed, render=render)
+    rows = []
     total_reward = 0.0
-    info: Dict[str, float] = {"formula_u_t": U_BASE}
     obs = env.observation()
+    info: Dict[str, float] = {"formula_u_t": compute_rbf_u(env.ego, env.veh1, env.veh2)["u_t"]}
     done = False
     steps = 0
     while not done:
-        u_t = policy(obs, info) if policy is not None else compute_rbf_u(env.ego, env.front, env.rear)["u_t"]
+        u_t = policy(obs, info) if policy is not None else info["formula_u_t"]
         obs, reward, done, info = env.step(u_t)
         total_reward += reward
         steps += 1
@@ -362,13 +710,15 @@ def run_episode(
             "success": float(info["success"]),
             "collision": float(info["collided"]),
         })
-
-    if csv_path:
+    if csv_path and rows:
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
             writer.writeheader()
             writer.writerows(rows)
-
+    if render:
+        require_matplotlib()
+        plt.ioff()
+        plt.show()
     return {
         "seed": -1 if seed is None else seed,
         "ego_x0": env.ego_x0,
@@ -382,12 +732,13 @@ def run_episode(
     }
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="单 gap 独立仿真环境")
+def main():
+    parser = argparse.ArgumentParser(description="最终版单 gap 环境：运行一次带图仿真")
     parser.add_argument("--seed", type=int, default=None, help="随机种子")
     parser.add_argument("--csv", default="single_gap_rollout.csv", help="逐步仿真结果 CSV")
+    parser.add_argument("--no-render", action="store_true", help="关闭图像显示")
     args = parser.parse_args()
-    result = run_episode(seed=args.seed, csv_path=args.csv)
+    result = run_episode(seed=args.seed, csv_path=args.csv, render=not args.no_render)
     print("单 gap 仿真完成：")
     for key, value in result.items():
         print(f"  {key}: {value}")

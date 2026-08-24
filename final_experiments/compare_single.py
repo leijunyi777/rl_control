@@ -20,6 +20,14 @@ from single_gap_env import U_HIGH, U_LOW, SingleGapEnv, compute_rbf_u, run_episo
 HIDDEN_SIZE = 256
 ACTION_DIM = 1
 
+# =========================
+# 开头可调评价参数
+# =========================
+EVAL_RUNS = 10
+EVAL_SEED = 7825
+DEFAULT_POLICY_PATH = "single_gap_sac_policy.pth"
+DEFAULT_CSV_OUT = "single_gap_compare.csv"
+
 
 class GaussianPolicy(nn.Module):
     """与训练脚本一致的策略网络结构，仅用于加载和推理。"""
@@ -138,10 +146,10 @@ def compare(policy_path: str, runs: int, seed: int, csv_out: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="单 gap SAC 与 RBF 对比")
-    parser.add_argument("--policy", default="single_gap_sac_policy.pth", help="训练好的 policy 路径")
-    parser.add_argument("--runs", type=int, default=10, help="重复评价次数")
-    parser.add_argument("--seed", type=int, default=7825, help="随机种子")
-    parser.add_argument("--csv-out", default="single_gap_compare.csv", help="输出 CSV")
+    parser.add_argument("--policy", default=DEFAULT_POLICY_PATH, help="训练好的 policy 路径")
+    parser.add_argument("--runs", type=int, default=EVAL_RUNS, help="重复评价次数")
+    parser.add_argument("--seed", type=int, default=EVAL_SEED, help="随机种子")
+    parser.add_argument("--csv-out", default=DEFAULT_CSV_OUT, help="输出 CSV")
     args = parser.parse_args()
     compare(args.policy, args.runs, args.seed, args.csv_out)
 

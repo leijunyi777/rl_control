@@ -14,6 +14,15 @@ from typing import List, Optional
 from multi_gap_env import run_episode
 
 
+# =========================
+# 开头可调评价参数
+# =========================
+EVAL_RUNS = 100
+EVAL_SEED = None
+DEFAULT_POLICY_PATH = None
+DEFAULT_CSV_OUT = "multi_gap_opinion_vs_max.csv"
+
+
 class LoadedPolicy:
     """加载单 gap SAC policy；不提供 policy 时脚本使用环境内置 RBF u(t)。"""
 
@@ -124,10 +133,10 @@ def compare(runs: int, seed: Optional[int], policy_path: Optional[str], csv_out:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="多 gap opinion vs max 高层决策对比")
-    parser.add_argument("--runs", type=int, default=100, help="评价轮次")
-    parser.add_argument("--seed", type=int, default=None, help="随机种子")
-    parser.add_argument("--policy", default=None, help="可选：单 gap SAC policy 路径")
-    parser.add_argument("--csv-out", default="multi_gap_opinion_vs_max.csv", help="输出 CSV")
+    parser.add_argument("--runs", type=int, default=EVAL_RUNS, help="评价轮次")
+    parser.add_argument("--seed", type=int, default=EVAL_SEED, help="随机种子")
+    parser.add_argument("--policy", default=DEFAULT_POLICY_PATH, help="可选：单 gap SAC policy 路径")
+    parser.add_argument("--csv-out", default=DEFAULT_CSV_OUT, help="输出 CSV")
     args = parser.parse_args()
     compare(args.runs, args.seed, args.policy, args.csv_out)
 
