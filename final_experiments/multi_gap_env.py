@@ -28,6 +28,7 @@ from single_gap_env import (
     REVERSE_PROGRESS_PENALTY_GAIN,
     SAFETY_MARGIN_FACTOR,
     SAFETY_PENALTY_GAIN,
+    SAFETY_VIOLATION_CAP,
     SUCCESS_BONUS_BASE,
     SUCCESS_TIME_PENALTY_GAIN,
     TIMEOUT_PROGRESS_PENALTY_GAIN,
@@ -422,7 +423,7 @@ class MultiGapEnv:
         lateral_flip = self.prev_lateral_velocity * current_lateral_velocity < 0.0 and abs(self.prev_lateral_velocity) > 1e-3 and abs(current_lateral_velocity) > 1e-3
         safety_margin = SAFETY_MARGIN_FACTOR * self.dynamics.ego.r
         safety_scale = max(safety_margin - self.dynamics.ego.r, 1e-6)
-        safety_violation = max(0.0, (safety_margin - diag["min_distance"]) / safety_scale)
+        safety_violation = min(SAFETY_VIOLATION_CAP, max(0.0, (safety_margin - diag["min_distance"]) / safety_scale))
         timeout = (not diag["collision"]) and (not diag["success"]) and self.t >= SIM_TIME
         terms = {
             "progress": PROGRESS_REWARD_GAIN * max(progress_delta, 0.0),
