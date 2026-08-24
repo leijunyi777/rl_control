@@ -173,7 +173,6 @@ def plot_multi_generalization(ax, rows: list[dict[str, str]]) -> None:
     runs = as_float(rows, "run")
     rewards = as_float(rows, "reward")
     success = as_float(rows, "success")
-    collision = as_float(rows, "collision")
     mean_reward, ci_reward = mean_ci95(rewards)
     ax.scatter(runs, rewards, color=BLUE, marker="o", s=16, alpha=0.75, label="Raw runs")
     ax.axhline(mean_reward, color=BLACK, linewidth=1.1, linestyle="--", label="Mean reward")
@@ -184,16 +183,15 @@ def plot_multi_generalization(ax, rows: list[dict[str, str]]) -> None:
     ax.grid(True, color="#E6E6E6", linewidth=0.5)
     ax.legend(frameon=False, loc="lower right")
     success_rate = 100.0 * statistics.fmean(finite(success))
-    collision_rate = 100.0 * statistics.fmean(finite(collision))
     ax.text(
-        0.02,
-        0.96,
-        f"Success: {success_rate:.1f}%\nCollision: {collision_rate:.1f}%",
+        0.98,
+        1.03,
+        f"Success: {success_rate:.1f}%",
         transform=ax.transAxes,
-        va="top",
-        ha="left",
+        va="bottom",
+        ha="right",
         fontsize=7,
-        bbox={"facecolor": "white", "edgecolor": "#B0B0B0", "linewidth": 0.5, "pad": 2},
+        clip_on=False,
     )
     draw_panel_label(ax, "C")
 
