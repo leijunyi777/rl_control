@@ -66,6 +66,7 @@ DIRECTION_FLIP_PENALTY = 1.0
 SAFETY_MARGIN_FACTOR = 1.6
 SAFETY_PENALTY_GAIN = 80.0
 COLLISION_PENALTY = 1000.0
+SUCCESS_SAFE_FACTOR = 2.0
 SUCCESS_BONUS_BASE = 350.0
 SUCCESS_TIME_PENALTY_GAIN = 5.0
 TIMEOUT_PROGRESS_PENALTY_GAIN = 200.0
@@ -561,7 +562,7 @@ class SingleGapEnv:
         return get_veh12_gap(self.state[:17], self.veh1.L, self.veh2.L)
 
     def _is_success(self, lane_progress, min_distance):
-        return lane_progress > 0.95 and abs(self.ego.y - self.target_lane_y) < 0.2 and min_distance > 1.5 * self.collision_radius
+        return lane_progress > 0.95 and abs(self.ego.y - self.target_lane_y) < 0.2 and min_distance > SUCCESS_SAFE_FACTOR * self.collision_radius
 
     def step_action(self, action):
         action = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
@@ -633,6 +634,7 @@ class SingleGapEnv:
             "gap": veh12_gap,
             "min_distance": ego_min_distance,
             "safe_margin": safety_margin,
+            "success_safe_distance": SUCCESS_SAFE_FACTOR * self.collision_radius,
             "collided": collided,
             "collision": collided,
             "success": success,

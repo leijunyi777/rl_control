@@ -29,6 +29,7 @@ from single_gap_env import (
     SAFETY_MARGIN_FACTOR,
     SAFETY_PENALTY_GAIN,
     SUCCESS_BONUS_BASE,
+    SUCCESS_SAFE_FACTOR,
     SUCCESS_TIME_PENALTY_GAIN,
     TIMEOUT_PROGRESS_PENALTY_GAIN,
     TIME_PENALTY_GAIN,
@@ -327,7 +328,7 @@ class Main13HighLevelDynamics:
         _, ego_distances = self._global_safe_control(target_states, ego_state)
         min_distance = float(np.min(ego_distances))
         lane_error = abs(ego_state[1] - LANE_WIDTH * 1.5)
-        success = lane_error <= 0.25 and min_distance > 1.5 * self.ego.r
+        success = lane_error <= 0.25 and min_distance > SUCCESS_SAFE_FACTOR * self.ego.r
         return {
             "target_states": target_states,
             "ego_state": ego_state,
