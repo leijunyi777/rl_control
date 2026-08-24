@@ -33,20 +33,24 @@ from single_gap_env import (
 # =========================
 # 与原始 main12_sac_train.py 保持一致的训练参数
 # =========================
-NUM_EPISODES = 50
+# SAC 对样本量比较敏感，50 轮通常只适合快速冒烟测试；默认给到 300 轮用于正式训练。
+NUM_EPISODES = 300
 RENDER_DURING_TRAINING = False
 SEED = 7
 
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 REPLAY_SIZE = 200_000
-INITIAL_RANDOM_STEPS = 1_000
+# 单维 action 问题不需要太长的纯随机阶段，降低该值可以更早进入策略学习。
+INITIAL_RANDOM_STEPS = 300
 UPDATES_PER_STEP = 1
 GAMMA = 0.99
 TAU = 0.005
-POLICY_LR = 3e-4
-Q_LR = 3e-4
-ALPHA_LR = 3e-4
+POLICY_LR = 2e-4
+Q_LR = 2e-4
+ALPHA_LR = 1e-4
 HIDDEN_SIZE = 256
+REWARD_SCALE = 0.05
+GRAD_CLIP_NORM = 5.0
 
 POLICY_PATH = "single_gap_sac_policy.pth"
 CSV_PATH = "single_gap_sac_train.csv"
@@ -57,6 +61,8 @@ def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 class ReplayBuffer:
@@ -179,10 +185,12 @@ class SACAgent:
 
         self.q1_opt.zero_grad()
         q1_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.q1.parameters(), GRAD_CLIP_NORM)
         self.q1_opt.step()
 
         self.q2_opt.zero_grad()
         q2_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.q2.parameters(), GRAD_CLIP_NORM)
         self.q2_opt.step()
 
         new_action, log_prob, _ = self.policy.sample(state)
@@ -191,6 +199,7 @@ class SACAgent:
 
         self.policy_opt.zero_grad()
         policy_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.policy.parameters(), GRAD_CLIP_NORM)
         self.policy_opt.step()
 
         alpha_loss = -(self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
@@ -240,6 +249,8 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
     for episode in range(1, episodes + 1):
         state = env.reset()
         episode_reward = 0.0
+        episode_train_reward = 0.0
+        term_sums = {}
         u_values = []
         last_info = {"lane_progress": 0.0, "collided": False, "success": False, "u_t": 0.0, "time": 0.0, "min_distance": 0.0}
         step_count = 0
@@ -251,11 +262,15 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
                 action = agent.select_action(state)
 
             next_state, reward, done, info = env.step_action(action)
-            replay_buffer.push(state, action, reward, next_state, float(done))
+            train_reward = reward * REWARD_SCALE
+            replay_buffer.push(state, action, train_reward, next_state, float(done))
             state = next_state
             episode_reward += reward
+            episode_train_reward += train_reward
             u_values.append(info["u_t"])
             last_info = info
+            for key, value in info.get("reward_terms", {}).items():
+                term_sums[key] = term_sums.get(key, 0.0) + float(value)
             total_steps += 1
             step_count += 1
 
@@ -269,6 +284,7 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
         row = {
             "episode": episode,
             "reward": episode_reward,
+            "train_reward": episode_train_reward,
             "progress": last_info["lane_progress"],
             "collision": float(last_info["collided"]),
             "success": float(last_info["success"]),
@@ -279,6 +295,8 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
             "min_distance": last_info["min_distance"],
             **last_losses,
         }
+        for key in sorted(term_sums):
+            row[f"term_{key}"] = term_sums[key]
         rows.append(row)
 
         print(
@@ -298,6 +316,7 @@ def train(episodes: int, seed: int, policy_out: str, csv_out: str) -> None:
             "action_dim": action_dim,
             "u_low": U_LOW,
             "u_high": U_HIGH,
+            "reward_scale": REWARD_SCALE,
             "sim_time": SIM_TIME,
             "dt": DT,
             "ego_x_base": EGO_X_BASE,
