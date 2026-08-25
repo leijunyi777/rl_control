@@ -333,7 +333,8 @@ def latex_escape_text(text: str) -> str:
         return hold(match.group(0))
 
     text = re.sub(r"\\\(.*?\\\)", math_repl, text)
-    text = re.sub(r"`([^`]+)`", lambda m: hold("", r"\texttt{" + m.group(1) + "}"), text)
+    text = re.sub(r"\$[^$]+\$", math_repl, text)
+    text = re.sub(r"`([^`]+)`", lambda m: hold(r"\texttt{" + m.group(1) + "}"), text)
     chars = {
         "\\": r"\textbackslash{}",
         "&": r"\&",
@@ -410,12 +411,12 @@ def markdown_to_latex(en_md: str) -> str:
         if heading:
             level = len(heading.group(1))
             title = latex_escape_text(heading.group(2))
-            cmd = {1: "chapter", 2: "section", 3: "subsection", 4: "subsubsection"}.get(level, "paragraph")
+            cmd = {1: "section", 2: "subsection", 3: "subsubsection"}.get(level, "paragraph")
             out.append(f"\\{cmd}{{{title}}}")
             i += 1
             continue
         if stripped == "$$":
-            out.append(r"\[")
+            out.append(r"\[" if not in_math else r"\]")
             in_math = not in_math
             i += 1
             continue

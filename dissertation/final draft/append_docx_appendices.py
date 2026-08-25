@@ -193,13 +193,14 @@ def appendices_latex() -> str:
     return "\n\n".join(
         [
             START_MARKER,
-            r"\appendix",
-            r"\chapter{Project Outline}",
+            r"\begin{uomappendix}",
+            r"\section{Project Outline}",
             docx_to_latex(PROJECT_OUTLINE),
-            r"\chapter{Risk Assessment}",
+            r"\section{Risk Assessment}",
             docx_to_latex(RISK_ASSESSMENT),
-            r"\chapter{Experimental Parameter Summary}",
+            r"\section{Experimental Parameter Summary}",
             parameter_summary_latex(),
+            r"\end{uomappendix}",
             END_MARKER,
         ]
     )
