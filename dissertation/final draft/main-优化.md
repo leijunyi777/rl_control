@@ -148,15 +148,12 @@ In high-level decision-making, the external environment bias is determined by th
 在高层决策中，外部环境偏置由 gap 置信度决定，而注意力是由以下公式自身更新，这个 Hill 型函数依赖 \(y^2\)，因此对意见符号是对称的。当 \(y(t)\) 接近零时，注意力衰减，车辆保持谨慎；当 \(|y(t)|\) 增大时，\(S_h\) 上升，进而提高 \(u_h(t)\)，而更大的 \(u_h(t)\) 又会加强意见方程中的自强化项。这个反馈闭环使微小但连续存在的偏好能够逐渐变成稳定 gap 选择。
 
 $$
-\dot{u}_h(t) =
-\frac{-u_h(t)+S_h(y(t)^2)}{\tau_h},
+\begin{aligned}
+\dot{u}_h(t) &= \frac{-u_h(t)+S_h(y(t)^2)}{\tau_h},\\
+S_h(y^2) &= U_{\max}\frac{(y^2)^n}{K_h^n+(y^2)^n}.
+\end{aligned}
 $$
 
-$$
-S_h(y^2) =
-U_{\max}
-\frac{(y^2)^n}{K_h^n+(y^2)^n}.
-$$
 
 ### 高层偏置的计算/High-Level Bias from Gap Confidence
 
@@ -169,14 +166,12 @@ At each time step, the high-level module selects the three target-lane vehicles 
 每个时间步，高层模块按照纵向前轴坐标选出距离 ego 车最近的三辆目标车道车辆。将这三辆车按从前到后的顺序记为 \((i_1,i_2,i_3)\)。前方候选 gap 是 \(i_1\) 与 \(i_2\) 之间的空隙，后方候选 gap 是 \(i_2\) 与 \(i_3\) 之间的空隙。对任意由前车 \(F\) 和后车 \(R\) 构成的候选 gap，其中心位置和平均速度定义为
 
 $$
-x_g(t) =
-\frac{p_F^x(t)+p_R^x(t)}{2},
+\begin{aligned}
+x_g(t)&=\frac{p_F^x(t)+p_R^x(t)}{2},&
+v_g(t)&=\frac{v_F^x(t)+v_R^x(t)}{2}.
+\end{aligned}
 $$
 
-$$
-v_g(t) =
-\frac{v_F^x(t)+v_R^x(t)}{2}.
-$$
 
 **English.**
 
@@ -187,14 +182,12 @@ The ego-to-gap alignment is defined by the longitudinal position error and the r
 ego 车与该 gap 的对齐程度由纵向位置误差和相对速度误差表示：
 
 $$
-d_g(t) =
-x_g(t)-p_e^x(t),
+\begin{aligned}
+d_g(t)&=x_g(t)-p_e^x(t),&
+\Delta v_g(t)&=v_g(t)-v_e^x(t).
+\end{aligned}
 $$
 
-$$
-\Delta v_g(t) =
-v_g(t)-v_e^x(t).
-$$
 
 **English.**
 
@@ -245,22 +238,12 @@ The high-level opinion \(y(t)\) stores the accumulated directional belief. After
 高层意见 \(y(t)\) 存储已经积累的方向信念。计算 \(B(t)\) 并更新 \(u_h(t)\) 后，系统使用步长 \(\Delta t\) 对高层意见进行离散积分，并更新注意力：
 
 $$
-y_{k+1} =
-y_k
-+\Delta t
-\left[
--d_y y_k
-+u_{h,k}\tanh(\alpha_y y_k)
-+B_k
-\right].
+\begin{aligned}
+y_{k+1} &= y_k +\Delta t\left[-d_y y_k+u_{h,k}\tanh(\alpha_y y_k)+B_k\right],\\
+u_{h,k+1} &= u_{h,k}+\Delta t\frac{-u_{h,k}+S_h(y_k^2)}{\tau_h}.
+\end{aligned}
 $$
 
-$$
-u_{h,k+1} =
-u_{h,k}
-+\Delta t
-\frac{-u_{h,k}+S_h(y_k^2)}{\tau_h}.
-$$
 
 **English.**
 
@@ -311,14 +294,13 @@ For a selected gap formed by a front vehicle \(F\) and a rear vehicle \(R\), the
 对由前车 \(F\) 和后车 \(R\) 构成的已选 gap，其物理长度以及 gap 变化率为
 
 $$
-g(t) =
-p_F^x(t)-p_R^x(t).
+\begin{aligned}
+g(t)&=p_F^x(t)-p_R^x(t),\\
+\dot{g}(t)&=v_F^x(t)-v_R^x(t),\\
+b(t)&=k_g\left[g(t)-g_{\mathrm{safe}}\right]+k_v\dot{g}(t).
+\end{aligned}
 $$
 
-$$
-\dot{g}(t) =
-v_F^x(t)-v_R^x(t).
-$$
 
 **English.**
 
@@ -328,11 +310,6 @@ The low-level bias evaluates whether the gap is sufficiently large and whether i
 
 底层偏置用于评价该 gap 是否足够大，以及 gap 正在变大还是变小：
 
-$$
-b(t) =
-k_g\left[g(t)-g_{\mathrm{safe}}\right]
-+k_v\dot{g}(t).
-$$
 
 **English.**
 
@@ -392,17 +369,13 @@ The low-level reinforcement-learning state describes the relative geometry and v
 底层强化学习状态描述 ego 车与所选 gap 前后两车之间的相对位置和相对速度。典型状态如下。其中 \(F\) 与 \(R\) 分别表示所选 gap 的前车和后车。
 
 $$
-s_t =
-\begin{bmatrix}
-\Delta x_F &
-\Delta y_F &
-\Delta v_F^x &
-\Delta v_F^y &
-\Delta x_R &
-\Delta y_R &
-\Delta v_R^x &
-\Delta v_R^y
-\end{bmatrix}^{\top}.
+\begin{aligned}
+s_t &= \begin{bmatrix}
+\Delta x_F & \Delta y_F & \Delta v_F^x & \Delta v_F^y &
+\Delta x_R & \Delta y_R & \Delta v_R^x & \Delta v_R^y
+\end{bmatrix}^{\top},\\
+a_t &= u(t),\qquad u(t)\in[u_{\min},u_{\max}].
+\end{aligned}
 $$
 
 **English.**
@@ -413,12 +386,6 @@ The policy output is the low-level attention:
 
 策略输出为底层注意力：
 
-$$
-a_t =
-u(t),
-\qquad
-u(t)\in[u_{\min},u_{\max}].
-$$
 
 **English.**
 
@@ -471,16 +438,12 @@ $$
 
 **English.**
 
-The opportunity term \(O_t\) represents whether the selected gap is currently suitable for merging. The progress terms reward moving toward the target lane, especially when a useful opportunity exists. The hesitation terms penalize remaining far from the target lane, so the policy cannot receive a high score by simply waiting. The action-smoothness and direction-flip terms reduce repeated acceleration or lateral-direction reversals. The safety term is continuous before collision, while the collision term is a large terminal penalty. The success bonus decreases with time, for example
+The opportunity term \(O_t\) represents whether the selected gap is currently suitable for merging. The progress terms reward moving toward the target lane, especially when a useful opportunity exists. The hesitation terms penalize remaining far from the target lane, so the policy cannot receive a high score by simply waiting. The action-smoothness and direction-flip terms reduce repeated acceleration or lateral-direction reversals. The safety term is continuous before collision, while the collision term is a large terminal penalty. The success bonus is implemented as a time-decreasing term \(R_{\mathrm{success}}(t)=100-2t\).
 
 **中文。**
 
 其中 \(O_t\) 表示当前所选 gap 是否构成有利并道机会。progress 项奖励车辆向目标车道推进，尤其在机会存在时给予更强鼓励。hesitation 项惩罚车辆长期停留在原车道附近，避免策略通过“不动”获得高分。动作平滑项和横向换向项减少反复加减速或左右方向抖动。安全项在真正碰撞前连续惩罚距离过近，碰撞项则是强终止惩罚。成功奖励随时间下降，例如
 
-$$
-R_{\mathrm{success}}(t) =
-100-2t,
-$$
 
 table 2: The various meanings of the rewards/表2：奖励的各项含义
 
@@ -507,22 +470,12 @@ The low-level opinion \(z(t)\) represents the degree of merge commitment for the
 底层意见 \(z(t)\) 表示 ego 车对所选 gap 的并道承诺程度。其动力学以及离散更新形式为
 
 $$
-\dot{z}(t) =
--d_z z(t)
-+u(t)\tanh\!\left(\alpha_z z(t)\right)
-+b(t).
+\begin{aligned}
+\dot{z}(t)&=-d_z z(t)+u(t)\tanh\!\left(\alpha_z z(t)\right)+b(t),\\
+z_{k+1}&=z_k+\Delta t\left[-d_z z_k+u_k\tanh(\alpha_z z_k)+b_k\right].
+\end{aligned}
 $$
 
-$$
-z_{k+1} =
-z_k
-+\Delta t
-\left[
--d_z z_k
-+u_k\tanh(\alpha_z z_k)
-+b_k
-\right].
-$$
 
 **English.**
 
@@ -605,20 +558,12 @@ The selected-gap target point is usually placed near the longitudinal center of 
 所选 gap 的目标点通常放在 gap 纵向中心附近，并位于目标车道中心线上；原车道参考点可放在 ego 车前方一定前视距离处：
 
 $$
-\mathbf{p}_G^{\star}(t) =
-\begin{bmatrix}
-x_g(t) \\
-y_T
-\end{bmatrix}.
+\begin{aligned}
+\mathbf{p}_G^{\star}(t)&=\begin{bmatrix}x_g(t)\\y_T\end{bmatrix},&
+\mathbf{p}_O^{\star}(t)&=\begin{bmatrix}p_e^x(t)+\ell_{\mathrm{look}}\\y_O\end{bmatrix}.
+\end{aligned}
 $$
 
-$$
-\mathbf{p}_O^{\star}(t) =
-\begin{bmatrix}
-p_e^x(t)+\ell_{\mathrm{look}} \\
-y_O
-\end{bmatrix}.
-$$
 
 **English.**
 
@@ -629,15 +574,12 @@ The opinion-weighted target point and tracking error are:
 由意见加权得到的总目标点和跟踪误差为：
 
 $$
-\mathbf{p}^{\star}(t) =
-\left[1-\lambda_z(t)\right]\mathbf{p}_O^{\star}(t)
-+\lambda_z(t)\mathbf{p}_G^{\star}(t).
+\begin{aligned}
+\mathbf{p}^{\star}(t)&=\left[1-\lambda_z(t)\right]\mathbf{p}_O^{\star}(t)+\lambda_z(t)\mathbf{p}_G^{\star}(t),\\
+\mathbf{e}_z(t)&=\mathbf{p}^{\star}(t)-\mathbf{p}_e(t).
+\end{aligned}
 $$
 
-$$
-\mathbf{e}_z(t) =
-\mathbf{p}^{\star}(t)-\mathbf{p}_e(t).
-$$
 
 **English.**
 
@@ -673,15 +615,12 @@ This vector is then converted into physical inputs. Let the front-axle velocity 
 随后该向量被转换为实际车辆输入。令前轴速度方向及其法向方向为
 
 $$
-\mathbf{t}_e(t) =
-\frac{\mathbf{v}_e^f(t)}
-{\lVert\mathbf{v}_e^f(t)\rVert_2+\epsilon},
-\qquad
-\mathbf{n}_e(t) =
-\begin{bmatrix}
--t_e^y(t) \\
-t_e^x(t)
-\end{bmatrix}.
+\begin{aligned}
+\mathbf{t}_e(t)&=\frac{\mathbf{v}_e^f(t)}{\lVert\mathbf{v}_e^f(t)\rVert_2+\epsilon},&
+\mathbf{n}_e(t)&=\begin{bmatrix}-t_e^y(t)\\t_e^x(t)\end{bmatrix},\\
+a(t)&=\mathrm{clip}\left(\mathbf{u}_{\mathrm{total}}(t)^\top\mathbf{t}_e(t),a_{\min},a_{\max}\right),\\
+\omega(t)&=\mathrm{clip}\left(k_{\omega}\,\mathbf{u}_{\mathrm{total}}(t)^\top\mathbf{n}_e(t),\omega_{\min},\omega_{\max}\right).
+\end{aligned}
 $$
 
 **English.**
@@ -692,15 +631,6 @@ The longitudinal acceleration can be approximated by projection onto \(\mathbf{t
 
 纵向加速度可通过在速度方向上的投影近似得到：
 
-$$
-a(t) =
-\mathrm{clip}
-\left(
-\mathbf{u}_{\mathrm{total}}(t)^{\top}\mathbf{t}_e(t),
-a_{\min},
-a_{\max}
-\right).
-$$
 
 **English.**
 
@@ -710,16 +640,6 @@ The steering-rate command is generated from the lateral component:
 
 转角变化率由横向分量生成：
 
-$$
-\omega(t) =
-\mathrm{clip}
-\left(
-k_{\omega}\,
-\mathbf{u}_{\mathrm{total}}(t)^{\top}\mathbf{n}_e(t),
-\omega_{\min},
-\omega_{\max}
-\right).
-$$
 
 **English.**
 
@@ -780,9 +700,13 @@ The rear vehicle is deliberately designed to create a staged merging opportunity
 后车运动被设计成分阶段生成并道机会。在 \(t_y=20.0\,\mathrm{s}\) 之前，后车采用正弦加速度。令
 
 $$
-\omega_s=\frac{2\pi}{P_s},\qquad
-P_s=6.0\,\mathrm{s},\qquad
-A_s=4.0\,\mathrm{m/s}.
+\begin{aligned}
+\omega_s&=\frac{2\pi}{P_s},\qquad P_s=6.0\,\mathrm{s},\qquad A_s=4.0\,\mathrm{m/s},\\
+a_R(t)&=A_s\omega_s\cos(\omega_s t),\\
+v_R(t)&=v_R(0)+A_s\sin(\omega_s t),\\
+x_R(t)&=x_R(0)+v_R(0)t+\frac{A_s}{\omega_s}\left[1-\cos(\omega_s t)\right],\\
+g(t)&=x_F(t)-x_R(t)=15.0-\frac{A_s}{\omega_s}\left[1-\cos(\omega_s t)\right],\quad 0\leq t\leq20.0.
+\end{aligned}
 $$
 
 **English.**
@@ -793,17 +717,6 @@ For \(0\leq t\leq t_y\), the rear-vehicle acceleration, velocity, and position a
 
 当 \(0\leq t\leq t_y\) 时，后车加速度、速度和位置为
 
-$$
-a_R(t)=A_s\omega_s\cos(\omega_s t),
-$$
-
-$$
-v_R(t)=v_R(0)+A_s\sin(\omega_s t),
-$$
-
-$$
-x_R(t)=x_R(0)+v_R(0)t+\frac{A_s}{\omega_s}\left[1-\cos(\omega_s t)\right].
-$$
 
 **English.**
 
@@ -813,12 +726,6 @@ Since the front vehicle travels with constant speed \(v_F=15.0\,\mathrm{m/s}\), 
 
 前车保持匀速 \(v_F=15.0\,\mathrm{m/s}\),于是让行前的前后车 gap 可写为
 
-$$
-g(t)=x_F(t)-x_R(t)
-=15.0-\frac{A_s}{\omega_s}\left[1-\cos(\omega_s t)\right],
-\qquad
-0\leq t\leq20.0.
-$$
 
 **English.**
 
@@ -829,16 +736,10 @@ After \(20.0\,\mathrm{s}\), the rear vehicle starts yielding by tracking a desir
 在 \(20.0\,\mathrm{s}\) 之后，后车开始让行，并跟踪期望 gap \(g_{\mathrm{yield}}=20.0\,\mathrm{m}\)。后车加速度变为
 
 $$
-a_R(t)=
-\mathrm{clip}
-\left(
-0.35\left[g(t)-20.0\right]
--1.1\left[v_R(t)-v_F(t)\right],
--5.0,
-2.0
-\right),
-\qquad
-t>20.0.
+\begin{aligned}
+a_R(t)&=\mathrm{clip}\left(0.35\left[g(t)-20.0\right]-1.1\left[v_R(t)-v_F(t)\right],-5.0,2.0\right),\quad t>20.0,\\
+\dot{g}(t)&=v_F(t)-v_R(t),\qquad \ddot{g}(t)=-a_R(t),\qquad t>20.0.
+\end{aligned}
 $$
 
 **English.**
@@ -849,13 +750,6 @@ Equivalently, the gap dynamics after yielding are governed by
 
 等价地，让行后的 gap 动态满足
 
-$$
-\dot{g}(t)=v_F(t)-v_R(t),
-\qquad
-\ddot{g}(t)=-a_R(t),
-\qquad
-t>20.0.
-$$
 
 **English.**
 
@@ -886,19 +780,12 @@ $$
 
 **English.**
 
-The evaluation repeats the simulation \(100\) times with shared random ego initial positions. For each random seed, both policies face the same initial \(x_e(0)\) and the same target-vehicle trajectory. The comparison reports the episode reward of each trial and the mean and standard deviation across trials:
+The evaluation repeats the simulation \(100\) times with shared random ego initial positions. For each random seed, both policies face the same initial \(x_e(0)\) and the same target-vehicle trajectory. The comparison reports each episode reward and summarizes the mean and standard deviation across trials.
 
 **中文。**
 
 评价阶段重复 \(100\) 次仿真，并使用共享的随机 ego 初始位置。对每一个随机种子，SAC 策略和 RBF 策略面对完全相同的 \(x_e(0)\) 和目标车轨迹。最终比较每次 episode reward，并统计多次试验的均值与标准差：
 
-$$
-\bar{R}_{\mathrm{SAC}}=\frac{1}{N_{\mathrm{eval}}}\sum_{j=1}^{N_{\mathrm{eval}}}R_{\mathrm{SAC}}^{(j)},
-\qquad
-\bar{R}_{\mathrm{RBF}}=\frac{1}{N_{\mathrm{eval}}}\sum_{j=1}^{N_{\mathrm{eval}}}R_{\mathrm{RBF}}^{(j)},
-\qquad
-N_{\mathrm{eval}}=100.
-$$
 
 ## 多 gap 并入实验/Multi-Gap Merging Experiment
 
@@ -939,15 +826,12 @@ $$
 
 **English.**
 
-The four target-lane gaps are randomly adjusted over time. Every \(T_g=4.0\,\mathrm{s}\), at most two gaps are selected for modification, and each selected gap receives a desired spacing from the multiplier set
+The four target-lane gaps are randomly adjusted over time. Every \(T_g=4.0\,\mathrm{s}\), at most two gaps are selected for modification, and each selected gap receives a desired spacing from the multiplier set \(\mathcal{M}=\{0.75,1.0,1.25,1.5\}\).
 
 **中文。**
 
 四个目标车道 gap 会随时间随机调整。每隔 \(T_g=4.0\,\mathrm{s}\)，最多两个 gap 会被选中改变期望间距，被选中的 gap 从倍率集合中抽取一个倍率：
 
-$$
-\mathcal{M}=\{0.75,1.0,1.25,1.5\}.
-$$
 
 **English.**
 
@@ -978,27 +862,21 @@ This mechanism produces a target lane in which gaps open, close, and reconfigure
 
 **English.**
 
-The high-level ablation compares the opinion-dynamics selector with a simple maximum-score selector. The maximum-score baseline removes the high-level opinion memory and chooses the locally better gap instantaneously:
+The high-level ablation compares the opinion-dynamics selector with a simple maximum-score selector. The maximum-score baseline removes the high-level opinion memory and instantaneously chooses the candidate with the larger score.
 
 **中文。**
 
 高层消融实验比较意见动力学选择器与简单最大评分选择器。最大评分基线去掉高层意见记忆，并瞬时选择局部评分更高的 gap：
 
-$$
-i_k^{\star}=\arg\max_i S_i(t_k),
-$$
 
 **English.**
 
-where \(S_i(t_k)\) is the instantaneous confidence or gap-evaluation score of candidate gap \(i\). The proposed opinion-dynamics selector instead integrates the confidence difference over time:
+Here \(S_i(t_k)\) is the instantaneous confidence or gap-evaluation score of candidate gap \(i\). The proposed opinion-dynamics selector instead integrates the confidence difference \(C_f(t)-C_r(t)\) through the high-level opinion dynamics defined above.
 
 **中文。**
 
 其中 \(S_i(t_k)\) 表示候选 gap \(i\) 的瞬时置信度或 gap 评价分数。本文方法则通过意见动力学持续积分置信度差值：
 
-$$
-\dot{y}(t)=-d_y y(t)+u_h(t)\tanh(\alpha_y y(t))+C_f(t)-C_r(t).
-$$
 
 **English.**
 
@@ -1032,7 +910,7 @@ Fig5：SAC 与 RBFreward 对比/Comparison between SAC and RBF reward
 
 **English.**
 
-Compared with the manually designed baseline, the quantitative results are shown in the table. The SAC strategy achieved significantly higher average episodic reward ($\bar{R}_{\mathrm{SAC}} = 233.4$), while the RBF baseline was only ($\bar{R}_{\mathrm{RBF}} = 115.8$), with an average increase of approximately 117.6 points. Although both strategies achieved 100% success rate and no collisions, the most significant difference lies in the efficiency of task execution. The SAC strategy only takes an average of 6.9 seconds to select the lane change gap. In contrast, the RBF controller consumes 29.45 seconds per round of testing, which is very close to the preset simulation time limit. This indicates that although the RBF manual rules ensure safety, the strategy is overly conservative and fails to fully utilize the longitudinal motion capability of the vehicle. While SAC agent has learned an aggressive but safe strategy, reducing the task completion time by over 75%. 
+The SAC policy achieves a higher average episodic reward than the RBF baseline, with 233.4 versus 115.8. Both policies maintain 100% success and zero collisions, but SAC completes the task in 6.9 s, whereas RBF requires 29.45 s. This indicates that the hand-designed RBF rule is safe but conservative, while SAC learns a more efficient yet still collision-free strategy.
 
 In terms of safety indicators, the RBF baseline maintained a larger minimum distance ($d_{\min} \approx 9.7$ m), reflecting its inherent conservatism. The SAC strategy is closer to the obstacle ($d_{\min} \approx 2.6$ m), but always remains outside the collision radius, proving that the learned strategy can effectively balance time efficiency and collision safety through an optimized reward structure.
 
@@ -1076,7 +954,7 @@ Fig7：opinion 和 max 高层策略 reward 对比/Comparison of high-level strat
 
 **English.**
 
-The ablation compares two high-level decision-making strategies: the opinion-dynamics strategy (which provides recommendations based on the attention mechanism) and the max-score strategy (which selects the gap that maximizes a certain indicator), the opinion-dynamics strategy achieved significantly higher average rewards (+55.3%), indicating that the gap selected by the opinion-dynamics strategy is superior to the max-score strategy in terms of safety, stability, and overall returns. Although the max-score strategy completed tasks in a shorter time (average 8.2 seconds compared to 12.6 seconds) in some cases, its low rewards mainly resulted from larger safety penalties and less smooth control, reflecting that the selected gap might be too aggressive or not conducive to the smooth execution of the low-level strategy. In terms of the number of switches, the opinion-dynamics strategy had an fewer switches on average (0.61 vs 0.76), indicating that the gap suggestions provided by the opinion-dynamics strategy have better temporal consistency, reducing the control jitter caused by frequent switching of targets, and facilitating the improvement of passenger comfort and algorithm stability. The success rate of the opinion-dynamics strategy (97%) was slightly lowerer than that of the max-score strategy (100%), mainly due to timeout failures caused by exceeding the maximum simulation time. In summary, the opinion-dynamics strategy outperformed the max-score strategy in terms of total rewards and switch stability, verifying that the high-level decision-making based on attention can more effectively guide the low-level strategy and generate more stable lane-changing behaviors.
+The opinion-dynamics selector achieves a higher mean reward than the max-score selector (+55.3%) and switches less often (0.61 versus 0.76). Although max-score sometimes finishes faster, its lower reward indicates larger safety penalties and less smooth control. The opinion-based selector therefore provides more temporally consistent guidance, despite a slightly lower success rate caused by timeout cases.
 
 **中文。**
 
@@ -1187,12 +1065,5 @@ R16. Bizyaeva, A., Franci, A., & Leonard, N. E. (2023). Nonlinear Opinion Dynami
 | Multi-gap evaluation / 多 gap 评价 | \(N_{\mathrm{test}}\) | \(100\) | Random repeated test runs / 随机重复测试次数 |
 | Physical input / 物理输入 | \(a\) clip | \([-5.0,5.0]\,\mathrm{m/s^2}\) | Ego acceleration bounds / ego 加速度裁剪 |
 | Physical input / 物理输入 | \(\omega\) clip | \([-0.8,0.8]\,\mathrm{rad/s}\) | Ego steering-rate bounds / ego 转角变化率裁剪 |
-
-
-
-
-
-
-
 
 

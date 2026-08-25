@@ -30,6 +30,10 @@
 
 
 %% Load packages
+\RequirePackage{silence}
+\WarningFilter{xcolor}{Package option `hyperref' is obsolete}
+\WarningFilter{pdfx}{Setting all color commands to rgb}
+\WarningFilter{ExtSizes}{It is better to use one of the extsizes classes}
 \RequirePackage[a-3u]{pdfx}
 %\RequirePackage{hyperref}                % create internal hyperlinks, must be specified before cite package to work. Is loaded automatically by pdfx
   \hypersetup{hidelinks,colorlinks=false,breaklinks=true,bookmarksdepth=3}  % have no highlighting on links and break lines in the LOF and LOT

@@ -211,9 +211,10 @@ def update_main_tex() -> None:
     block = appendices_latex()
     pattern = re.compile(r"\n?" + re.escape(START_MARKER) + r".*?" + re.escape(END_MARKER) + r"\n?", re.S)
     tex = pattern.sub("\n", tex)
-    if r"\printbibliography" not in tex:
-        raise RuntimeError("Could not find \\printbibliography in English main.tex")
-    tex = tex.replace(r"\printbibliography", block + "\n\n" + r"\printbibliography", 1)
+    end_document = r"\end{document}"
+    if end_document not in tex:
+        raise RuntimeError("Could not find \\end{document} in English main.tex")
+    tex = tex.replace(end_document, block + "\n\n" + end_document, 1)
     MAIN_TEX.write_text(tex, encoding="utf-8")
 
 

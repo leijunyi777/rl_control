@@ -301,8 +301,9 @@ def extract_references(markdown: str) -> list[tuple[str, str]]:
     ref_section = markdown.split("# 参考文献/References", 1)
     if len(ref_section) < 2:
         return []
+    ref_text = re.split(r"(?m)^#\s+附录/Appendices\s*$", ref_section[1], maxsplit=1)[0]
     refs: list[tuple[str, str]] = []
-    for match in re.finditer(r"^R(\d+)\.\s+(.*?)(?=\n\nR\d+\.|\Z)", ref_section[1], flags=re.S | re.M):
+    for match in re.finditer(r"^R(\d+)\.\s+(.*?)(?=\n\nR\d+\.|\Z)", ref_text, flags=re.S | re.M):
         refs.append((f"R{match.group(1)}", " ".join(match.group(2).split())))
     return refs
 
@@ -457,20 +458,64 @@ def markdown_to_latex(en_md: str) -> str:
         else:
             out.append(latex_escape_text(stripped))
         i += 1
-    return "\n\n".join(out)
+    return remove_blank_lines_inside_math("\n\n".join(out))
+
+
+def remove_blank_lines_inside_math(latex: str) -> str:
+    math_envs = {"equation", "equation*", "align", "align*", "gather", "gather*", "multline", "multline*", "split", "cases"}
+    lines = latex.splitlines()
+    cleaned = []
+    in_display = False
+    env_stack = []
+    for line in lines:
+        stripped = line.strip()
+        begin_env = None
+        end_env = None
+        if stripped.startswith(r"\begin{"):
+            begin_env = stripped[len(r"\begin{"):].split("}", 1)[0]
+        if stripped.startswith(r"\end{"):
+            end_env = stripped[len(r"\end{"):].split("}", 1)[0]
+        if (in_display or env_stack) and not stripped:
+            continue
+        cleaned.append(line)
+        if stripped == r"\[":
+            in_display = True
+        elif stripped == r"\]":
+            in_display = False
+        elif begin_env in math_envs:
+            env_stack.append(begin_env)
+        elif end_env in math_envs and env_stack:
+            env_stack.pop()
+    return "\n".join(cleaned)
 
 
 def references_to_bib(refs: list[tuple[str, str]]) -> str:
+    def bib_escape(value: str) -> str:
+        value = re.sub(r"\*([^*]+)\*", r"\1", value)
+        value = value.replace("\\", r"\textbackslash{}")
+        replacements = {
+            "{": r"\{",
+            "}": r"\}",
+            "#": r"\#",
+            "%": r"\%",
+            "&": r"\&",
+            "_": r"\_",
+            "$": r"\$",
+        }
+        return "".join(replacements.get(ch, ch) for ch in value)
+
     entries = []
     for key, text in refs:
         doi = ""
         doi_match = re.search(r"https://doi\.org/([^\s]+)", text)
         if doi_match:
             doi = doi_match.group(1)
-        safe_text = text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
-        fields = [f"  title = {{{safe_text}}}", "  author = {{See reference list}}", "  year = {{n.d.}}"]
+        safe_text = bib_escape(text)
+        year_match = re.search(r"\((19|20)\d{2}\)", text)
+        year = year_match.group(0).strip("()") if year_match else SUBMIT_YEAR
+        fields = [f"  title = {{{safe_text}}}", "  author = {{See reference list}}", f"  year = {{{year}}}"]
         if doi:
-            fields.append(f"  doi = {{{doi}}}")
+            fields.append(f"  doi = {{{bib_escape(doi)}}}")
         entries.append("@misc{" + key + ",\n" + ",\n".join(fields) + "\n}")
     return "\n\n".join(entries) + "\n"
 
@@ -517,8 +562,6 @@ def make_latex_main(en_md: str, refs: list[tuple[str, str]]) -> str:
 \DefineBibliographyStrings{{english}}{{backrefpage = {{cited on p\adddot}}, backrefpages = {{cited on pp\adddot}}}}
 \addbibresource{{references.bib}}
 
-\quickwordcount{{\currfilebase}}
-
 \begin{{document}}
 \makeatletter
 \title{{\xmp@Title}}
@@ -529,7 +572,7 @@ def make_latex_main(en_md: str, refs: list[tuple[str, str]]) -> str:
 \faculty{{Science and Engineering}}
 \school{{School of Engineering}}
 \submitdate{{{SUBMIT_YEAR}}}
-\wordcount{{\mywordcount}}
+\wordcount{{To be confirmed}}
 \maketitle
 
 \uomtoc
@@ -552,7 +595,7 @@ Acknowledgements may be added here.
 
 {body}
 
-\printbibliography
+\printbibliography[title={{References}},heading=bibintoc]
 
 \end{{document}}
 """

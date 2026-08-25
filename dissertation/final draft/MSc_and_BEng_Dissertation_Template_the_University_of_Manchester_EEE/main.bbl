@@ -1,0 +1,794 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{none/global//global/global/global}
+    \entry{R1}{article}{}{}
+      \name{author}{5}{}{%
+        {{hash=2696a52abc524d5668c1ef2c7581d1d6}{%
+           family={Qu},
+           familyi={Q\bibinitperiod},
+           given={Dongdong},
+           giveni={D\bibinitperiod}}}%
+        {{hash=accfaf086a407bfb746d7875478d9130}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Kai},
+           giveni={K\bibinitperiod}}}%
+        {{hash=e80a8ed12bc80c31f61fe51924351bef}{%
+           family={Song},
+           familyi={S\bibinitperiod},
+           given={Haodong},
+           giveni={H\bibinitperiod}}}%
+        {{hash=80ce828409bb2c7f83d3e91305e58afc}{%
+           family={Jia},
+           familyi={J\bibinitperiod},
+           given={Yu},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=06e2900d5f63b121d1cdd5d1ac36fe40}{%
+           family={Dai},
+           familyi={D\bibinitperiod},
+           given={Shitao},
+           giveni={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{1a747dbb83c386371c4e636781a6e379}
+      \strng{fullhash}{da2d58b28623d0aed887022e7a5be803}
+      \strng{fullhashraw}{da2d58b28623d0aed887022e7a5be803}
+      \strng{bibnamehash}{1a747dbb83c386371c4e636781a6e379}
+      \strng{authorbibnamehash}{1a747dbb83c386371c4e636781a6e379}
+      \strng{authornamehash}{1a747dbb83c386371c4e636781a6e379}
+      \strng{authorfullhash}{da2d58b28623d0aed887022e7a5be803}
+      \strng{authorfullhashraw}{da2d58b28623d0aed887022e7a5be803}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Access}
+      \field{title}{Analysis and Modeling of Lane-Changing Game Strategy for Autonomous Driving Vehicles}
+      \field{volume}{10}
+      \field{year}{2022}
+      \field{pages}{69531\bibrangedash 69542}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1109/access.2022.3187431
+      \endverb
+    \endentry
+    \entry{R2}{article}{}{}
+      \name{author}{10}{}{%
+        {{hash=9382d936e15c86292d58d2e86399d5a4}{%
+           family={Deng},
+           familyi={D\bibinitperiod},
+           given={Zihang},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=53b16f91a5f97c9d483caa3b21fff555}{%
+           family={Hu},
+           familyi={H\bibinitperiod},
+           given={Wen-Shu},
+           giveni={W\bibinithyphendelim S\bibinitperiod}}}%
+        {{hash=66532e95d3186bb13ada8096abddf41d}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Chao},
+           giveni={C\bibinitperiod}}}%
+        {{hash=038f1304ac3c5e4f781b143055c35e2e}{%
+           family={Chu},
+           familyi={C\bibinitperiod},
+           given={Dongpu},
+           giveni={D\bibinitperiod}}}%
+        {{hash=6cb386e2bda56bce034f88d3130d3354}{%
+           family={Huang},
+           familyi={H\bibinitperiod},
+           given={Tianqi},
+           giveni={T\bibinitperiod}}}%
+        {{hash=be4b0acafe4200f1af8d35f853b4b7a5}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Wenshuo},
+           giveni={W\bibinitperiod}}}%
+        {{hash=6ade6b4972bf4967d1d436a3086c47e1}{%
+           family={Yu},
+           familyi={Y\bibinitperiod},
+           given={Chen},
+           giveni={C\bibinitperiod}}}%
+        {{hash=dbb9e230f9e32d8f684a73ccb99498c3}{%
+           family={Pirani},
+           familyi={P\bibinitperiod},
+           given={Mohammad},
+           giveni={M\bibinitperiod}}}%
+        {{hash=2e9f8c2f9f75e11add1ed60099cdcc1a}{%
+           family={Cao},
+           familyi={C\bibinitperiod},
+           given={Dongpu},
+           giveni={D\bibinitperiod}}}%
+        {{hash=5aaf85cb279ac1471a04ce9c932a1122}{%
+           family={Khajepour},
+           familyi={K\bibinitperiod},
+           given={Amir},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{1ce91aa80e2414c21090a59861d4b314}
+      \strng{fullhash}{a39bbfbe08891dc6e34e96c38381ca5c}
+      \strng{fullhashraw}{a39bbfbe08891dc6e34e96c38381ca5c}
+      \strng{bibnamehash}{1ce91aa80e2414c21090a59861d4b314}
+      \strng{authorbibnamehash}{1ce91aa80e2414c21090a59861d4b314}
+      \strng{authornamehash}{1ce91aa80e2414c21090a59861d4b314}
+      \strng{authorfullhash}{a39bbfbe08891dc6e34e96c38381ca5c}
+      \strng{authorfullhashraw}{a39bbfbe08891dc6e34e96c38381ca5c}
+      \field{extraname}{1}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Intelligent Transportation Systems}
+      \field{title}{Eliminating Uncertainty of Driver's Social Preferences for Lane Change Decision-Making in Realistic Simulation Environment}
+      \field{volume}{26}
+      \field{year}{2025}
+      \field{pages}{1583\bibrangedash 1597}
+      \range{pages}{15}
+      \verb{doi}
+      \verb 10.1109/tits.2024.3512784
+      \endverb
+    \endentry
+    \entry{R3}{article}{}{}
+      \name{author}{5}{}{%
+        {{hash=accfaf086a407bfb746d7875478d9130}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Kai},
+           giveni={K\bibinitperiod}}}%
+        {{hash=2696a52abc524d5668c1ef2c7581d1d6}{%
+           family={Qu},
+           familyi={Q\bibinitperiod},
+           given={Dongdong},
+           giveni={D\bibinitperiod}}}%
+        {{hash=e80a8ed12bc80c31f61fe51924351bef}{%
+           family={Song},
+           familyi={S\bibinitperiod},
+           given={Haodong},
+           giveni={H\bibinitperiod}}}%
+        {{hash=116858c4e1a5c2e318fe74ed5bb76b14}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Teng},
+           giveni={T\bibinitperiod}}}%
+        {{hash=06e2900d5f63b121d1cdd5d1ac36fe40}{%
+           family={Dai},
+           familyi={D\bibinitperiod},
+           given={Shitao},
+           giveni={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{f84f8a717f92d391f50ada63543df446}
+      \strng{fullhash}{cfefa94cf246d79a27d6c17d3dcc6bd3}
+      \strng{fullhashraw}{cfefa94cf246d79a27d6c17d3dcc6bd3}
+      \strng{bibnamehash}{f84f8a717f92d391f50ada63543df446}
+      \strng{authorbibnamehash}{f84f8a717f92d391f50ada63543df446}
+      \strng{authornamehash}{f84f8a717f92d391f50ada63543df446}
+      \strng{authorfullhash}{cfefa94cf246d79a27d6c17d3dcc6bd3}
+      \strng{authorfullhashraw}{cfefa94cf246d79a27d6c17d3dcc6bd3}
+      \field{extraname}{1}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Sustainability}
+      \field{title}{Analysis of Lane-Changing Decision-Making Behavior and Molecular Interaction Potential Modeling for Connected and Automated Vehicles}
+      \field{volume}{14}
+      \field{year}{2022}
+      \field{pages}{11049}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/su141711049
+      \endverb
+    \endentry
+    \entry{R4}{article}{}{}
+      \name{author}{5}{}{%
+        {{hash=eba68d34a25d8e0125cb5eeb7f44fbd9}{%
+           family={Yang},
+           familyi={Y\bibinitperiod},
+           given={Lin},
+           giveni={L\bibinitperiod}}}%
+        {{hash=679b33d6cae6ca1460021fb7a2be0ccc}{%
+           family={Cao},
+           familyi={C\bibinitperiod},
+           given={Chuan},
+           giveni={C\bibinitperiod}}}%
+        {{hash=a7a2d9ecd385930602153d0f27be7468}{%
+           family={Zhao},
+           familyi={Z\bibinitperiod},
+           given={Qiang},
+           giveni={Q\bibinitperiod}}}%
+        {{hash=4656453b716273b4ea07ab731e9b6dd5}{%
+           family={Yang},
+           familyi={Y\bibinitperiod},
+           given={Jie},
+           giveni={J\bibinitperiod}}}%
+        {{hash=de70df9d44132a01785f82c249cc4abb}{%
+           family={Fan},
+           familyi={F\bibinitperiod},
+           given={Aimin},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{ed2bd6fd519124175ed844b0d98262ac}
+      \strng{fullhash}{8f513434402a61e98b936a68e5e25149}
+      \strng{fullhashraw}{8f513434402a61e98b936a68e5e25149}
+      \strng{bibnamehash}{ed2bd6fd519124175ed844b0d98262ac}
+      \strng{authorbibnamehash}{ed2bd6fd519124175ed844b0d98262ac}
+      \strng{authornamehash}{ed2bd6fd519124175ed844b0d98262ac}
+      \strng{authorfullhash}{8f513434402a61e98b936a68e5e25149}
+      \strng{authorfullhashraw}{8f513434402a61e98b936a68e5e25149}
+      \field{extraname}{1}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Vehicular Technology}
+      \field{title}{Lane-Changing Strategy for Autonomous Vehicle With Adaptive Adjustment of Decision-Making Preference Based on Game Theory}
+      \field{volume}{75}
+      \field{year}{2026}
+      \field{pages}{130\bibrangedash 144}
+      \range{pages}{15}
+      \verb{doi}
+      \verb 10.1109/tvt.2025.3592221
+      \endverb
+    \endentry
+    \entry{R5}{article}{}{}
+      \name{author}{7}{}{%
+        {{hash=6cb386e2bda56bce034f88d3130d3354}{%
+           family={Huang},
+           familyi={H\bibinitperiod},
+           given={Tianqi},
+           giveni={T\bibinitperiod}}}%
+        {{hash=4912a429792741d2cbf4a785bebd6caf}{%
+           family={Fu},
+           familyi={F\bibinitperiod},
+           given={Rui},
+           giveni={R\bibinitperiod}}}%
+        {{hash=0087d36f590f4cc378e4a4e69260a71a}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Qi},
+           giveni={Q\bibinitperiod}}}%
+        {{hash=9382d936e15c86292d58d2e86399d5a4}{%
+           family={Deng},
+           familyi={D\bibinitperiod},
+           given={Zihang},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=b41259294df1d94b0236a0891ae51373}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Zhaoqing},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=577759bcff8a11a94e9cd4634c62384e}{%
+           family={Jin},
+           familyi={J\bibinitperiod},
+           given={Lisheng},
+           giveni={L\bibinitperiod}}}%
+        {{hash=5aaf85cb279ac1471a04ce9c932a1122}{%
+           family={Khajepour},
+           familyi={K\bibinitperiod},
+           given={Amir},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{0650084ab8863f9a6904aac5f9fdc73c}
+      \strng{fullhash}{6ad8ad982b2a32b31ddf60d8f2a667cf}
+      \strng{fullhashraw}{6ad8ad982b2a32b31ddf60d8f2a667cf}
+      \strng{bibnamehash}{0650084ab8863f9a6904aac5f9fdc73c}
+      \strng{authorbibnamehash}{0650084ab8863f9a6904aac5f9fdc73c}
+      \strng{authornamehash}{0650084ab8863f9a6904aac5f9fdc73c}
+      \strng{authorfullhash}{6ad8ad982b2a32b31ddf60d8f2a667cf}
+      \strng{authorfullhashraw}{6ad8ad982b2a32b31ddf60d8f2a667cf}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transportation Research Part C: Emerging Technologies}
+      \field{title}{Driver Lane Change Intention Prediction Based on Topological Graph Constructed by Driver Behaviors and Traffic Context for Human-Machine Co-Driving System}
+      \field{volume}{160}
+      \field{year}{2024}
+      \field{pages}{104497}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.trc.2024.104497
+      \endverb
+    \endentry
+    \entry{R6}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=c871c5250af09b016c00fe46d50ee9bf}{%
+           family={Yang},
+           familyi={Y\bibinitperiod},
+           given={Kai},
+           giveni={K\bibinitperiod}}}%
+        {{hash=7081766e83315608d18a46720bccf697}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Shengbo},
+           giveni={S\bibinitperiod}}}%
+        {{hash=780b11cd70b95d518f2400ca7967f673}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Ming},
+           giveni={M\bibinitperiod}}}%
+        {{hash=0d684c40f693c189cc782fdec63d2c9d}{%
+           family={Tang},
+           familyi={T\bibinitperiod},
+           given={Xiaobing},
+           giveni={X\bibinitperiod}}}%
+      }
+      \strng{namehash}{0c56335511ced9e4e017802e02c97e88}
+      \strng{fullhash}{e1d8a11eedee0255ae1a0787c5255d02}
+      \strng{fullhashraw}{e1d8a11eedee0255ae1a0787c5255d02}
+      \strng{bibnamehash}{0c56335511ced9e4e017802e02c97e88}
+      \strng{authorbibnamehash}{0c56335511ced9e4e017802e02c97e88}
+      \strng{authornamehash}{0c56335511ced9e4e017802e02c97e88}
+      \strng{authorfullhash}{e1d8a11eedee0255ae1a0787c5255d02}
+      \strng{authorfullhashraw}{e1d8a11eedee0255ae1a0787c5255d02}
+      \field{extraname}{2}
+      \field{sortinit}{5}
+      \field{sortinithash}{20e9b4b0b173788c5dace24730f47d8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Intelligent Transportation Systems}
+      \field{title}{Interactive Decision-Making Integrating Graph Neural Networks and Model Predictive Control for Autonomous Driving}
+      \field{volume}{26}
+      \field{year}{2025}
+      \field{pages}{6991\bibrangedash 7005}
+      \range{pages}{15}
+      \verb{doi}
+      \verb 10.1109/tits.2025.3532936
+      \endverb
+    \endentry
+    \entry{R7}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=20896e3ed9756ef8dc9e73ef75c686fb}{%
+           family={Jiang},
+           familyi={J\bibinitperiod},
+           given={Yiqing},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=8ffb22a2405acae983662dd8715c89fa}{%
+           family={Man},
+           familyi={M\bibinitperiod},
+           given={Zhihong},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=5c786d9afb3cf178271120f1fd926d21}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Yan},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=edb78944a4705132ecf142e1683e1124}{%
+           family={Yao},
+           familyi={Y\bibinitperiod},
+           given={Zhiyuan},
+           giveni={Z\bibinitperiod}}}%
+      }
+      \strng{namehash}{25a2de07dc6257ab1810d2d2ef35a0a9}
+      \strng{fullhash}{a5574d3c87f43979fbbf2401cdaae73a}
+      \strng{fullhashraw}{a5574d3c87f43979fbbf2401cdaae73a}
+      \strng{bibnamehash}{25a2de07dc6257ab1810d2d2ef35a0a9}
+      \strng{authorbibnamehash}{25a2de07dc6257ab1810d2d2ef35a0a9}
+      \strng{authornamehash}{25a2de07dc6257ab1810d2d2ef35a0a9}
+      \strng{authorfullhash}{a5574d3c87f43979fbbf2401cdaae73a}
+      \strng{authorfullhashraw}{a5574d3c87f43979fbbf2401cdaae73a}
+      \field{sortinit}{6}
+      \field{sortinithash}{b33bc299efb3c36abec520a4c896a66d}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Expert Systems with Applications}
+      \field{title}{Cooperative Lane-Changing for Connected Autonomous Vehicles Merging into Dedicated Lanes in Mixed Traffic Flow}
+      \field{volume}{252}
+      \field{year}{2024}
+      \field{pages}{124163}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.eswa.2024.124163
+      \endverb
+    \endentry
+    \entry{R8}{article}{}{}
+      \name{author}{2}{}{%
+        {{hash=ec9afbd0be4fc02675690c3c3677c575}{%
+           family={Monteiro},
+           familyi={M\bibinitperiod},
+           given={Fernando\bibnamedelima V.},
+           giveni={F\bibinitperiod\bibinitdelim V\bibinitperiod}}}%
+        {{hash=c2cf79bed5efadf7e85722b49113f8ea}{%
+           family={Ioannou},
+           familyi={I\bibinitperiod},
+           given={Petros\bibnamedelima A.},
+           giveni={P\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+      }
+      \strng{namehash}{d13311ee12b4451976aa38dad45437f9}
+      \strng{fullhash}{d13311ee12b4451976aa38dad45437f9}
+      \strng{fullhashraw}{d13311ee12b4451976aa38dad45437f9}
+      \strng{bibnamehash}{d13311ee12b4451976aa38dad45437f9}
+      \strng{authorbibnamehash}{d13311ee12b4451976aa38dad45437f9}
+      \strng{authornamehash}{d13311ee12b4451976aa38dad45437f9}
+      \strng{authorfullhash}{d13311ee12b4451976aa38dad45437f9}
+      \strng{authorfullhashraw}{d13311ee12b4451976aa38dad45437f9}
+      \field{sortinit}{6}
+      \field{sortinithash}{b33bc299efb3c36abec520a4c896a66d}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transportation Research Part C: Emerging Technologies}
+      \field{title}{Safe Autonomous Lane Changes and Impact on Traffic Flow in a Connected Vehicle Environment}
+      \field{volume}{151}
+      \field{year}{2023}
+      \field{pages}{104138}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.trc.2023.104138
+      \endverb
+    \endentry
+    \entry{R9}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=1ace941b7ea0c9136f9a87aa8c356ef8}{%
+           family={Lv},
+           familyi={L\bibinitperiod},
+           given={Kai},
+           giveni={K\bibinitperiod}}}%
+        {{hash=f9cb886e27903a8934576017d0ae97a2}{%
+           family={Pei},
+           familyi={P\bibinitperiod},
+           given={Xiaobei},
+           giveni={X\bibinitperiod}}}%
+        {{hash=da31f56113cb61a1fef7cf7543eefff8}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Chen},
+           giveni={C\bibinitperiod}}}%
+        {{hash=3c38570c1a2c89c3525a2139602c96b0}{%
+           family={Xu},
+           familyi={X\bibinitperiod},
+           given={Jian},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{82e2b7e4e0018ac26f70cb7e5d0f8d3a}
+      \strng{fullhash}{b85cd71f94da8e8159df3c9487a8684b}
+      \strng{fullhashraw}{b85cd71f94da8e8159df3c9487a8684b}
+      \strng{bibnamehash}{82e2b7e4e0018ac26f70cb7e5d0f8d3a}
+      \strng{authorbibnamehash}{82e2b7e4e0018ac26f70cb7e5d0f8d3a}
+      \strng{authornamehash}{82e2b7e4e0018ac26f70cb7e5d0f8d3a}
+      \strng{authorfullhash}{b85cd71f94da8e8159df3c9487a8684b}
+      \strng{authorfullhashraw}{b85cd71f94da8e8159df3c9487a8684b}
+      \field{sortinit}{7}
+      \field{sortinithash}{108d0be1b1bee9773a1173443802c0a3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Mathematics}
+      \field{title}{A Safe and Efficient Lane Change Decision-Making Strategy of Autonomous Driving Based on Deep Reinforcement Learning}
+      \field{volume}{10}
+      \field{year}{2022}
+      \field{pages}{1551}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/math10091551
+      \endverb
+    \endentry
+    \entry{R10}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=52ea004492335dc4b3f3f889e7f99117}{%
+           family={Deng},
+           familyi={D\bibinitperiod},
+           given={Haoran},
+           giveni={H\bibinitperiod}}}%
+        {{hash=b7e49907997b573e6e258ced73234928}{%
+           family={Zhao},
+           familyi={Z\bibinitperiod},
+           given={Yifan},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=07a750250bc37c9181998579542af8c2}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Qing},
+           giveni={Q\bibinitperiod}}}%
+        {{hash=b5edac90be82f7e86842826346dbda3c}{%
+           family={Nguyen},
+           familyi={N\bibinitperiod},
+           given={Anh-Tuan},
+           giveni={A\bibinithyphendelim T\bibinitperiod}}}%
+      }
+      \strng{namehash}{6f91fe75039f4526092e9bd93976c8e4}
+      \strng{fullhash}{a4a567c221556bc42f7b201058dace99}
+      \strng{fullhashraw}{a4a567c221556bc42f7b201058dace99}
+      \strng{bibnamehash}{6f91fe75039f4526092e9bd93976c8e4}
+      \strng{authorbibnamehash}{6f91fe75039f4526092e9bd93976c8e4}
+      \strng{authornamehash}{6f91fe75039f4526092e9bd93976c8e4}
+      \strng{authorfullhash}{a4a567c221556bc42f7b201058dace99}
+      \strng{authorfullhashraw}{a4a567c221556bc42f7b201058dace99}
+      \field{extraname}{2}
+      \field{sortinit}{7}
+      \field{sortinithash}{108d0be1b1bee9773a1173443802c0a3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Automotive Innovation}
+      \field{title}{Deep Reinforcement Learning Based Decision-Making Strategy of Autonomous Vehicle in Highway Uncertain Driving Environments}
+      \field{volume}{6}
+      \field{year}{2023}
+      \field{pages}{438\bibrangedash 452}
+      \range{pages}{15}
+      \verb{doi}
+      \verb 10.1007/s42154-023-00231-6
+      \endverb
+    \endentry
+    \entry{R11}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=b22cbba89f35336760169d1d8dec706a}{%
+           family={He},
+           familyi={H\bibinitperiod},
+           given={Xiang},
+           giveni={X\bibinitperiod}}}%
+        {{hash=b03eba7abbf5e0cc250656aea12c8a79}{%
+           family={Yang},
+           familyi={Y\bibinitperiod},
+           given={Hong},
+           giveni={H\bibinitperiod}}}%
+        {{hash=e541a82b2f68f642f53bdecb290131d9}{%
+           family={Hu},
+           familyi={H\bibinitperiod},
+           given={Zheng},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=d85d422eb497679f83d9593f1d591ae2}{%
+           family={Lv},
+           familyi={L\bibinitperiod},
+           given={Chen},
+           giveni={C\bibinitperiod}}}%
+      }
+      \strng{namehash}{0555725a781d9ac54dd07aec8839e08b}
+      \strng{fullhash}{22fc19902591b89e5298448ac128363e}
+      \strng{fullhashraw}{22fc19902591b89e5298448ac128363e}
+      \strng{bibnamehash}{0555725a781d9ac54dd07aec8839e08b}
+      \strng{authorbibnamehash}{0555725a781d9ac54dd07aec8839e08b}
+      \strng{authornamehash}{0555725a781d9ac54dd07aec8839e08b}
+      \strng{authorfullhash}{22fc19902591b89e5298448ac128363e}
+      \strng{authorfullhashraw}{22fc19902591b89e5298448ac128363e}
+      \field{sortinit}{7}
+      \field{sortinithash}{108d0be1b1bee9773a1173443802c0a3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Intelligent Vehicles}
+      \field{title}{Robust Lane Change Decision Making for Autonomous Vehicles: An Observation Adversarial Reinforcement Learning Approach}
+      \field{volume}{8}
+      \field{year}{2023}
+      \field{pages}{184\bibrangedash 193}
+      \range{pages}{10}
+      \verb{doi}
+      \verb 10.1109/tiv.2022.3165178
+      \endverb
+    \endentry
+    \entry{R12}{article}{}{}
+      \name{author}{6}{}{%
+        {{hash=83beb40b8827c15d96122579ca5e1efe}{%
+           family={Zhou},
+           familyi={Z\bibinitperiod},
+           given={Wenbo},
+           giveni={W\bibinitperiod}}}%
+        {{hash=f8ff1228cc4422c31e97a0f5e9dc2940}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Dong},
+           giveni={D\bibinitperiod}}}%
+        {{hash=934a0c3e849405255facd8113ba785b3}{%
+           family={Yan},
+           familyi={Y\bibinitperiod},
+           given={Jun},
+           giveni={J\bibinitperiod}}}%
+        {{hash=1e181d320377f5c489b768686bb952ee}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Zhen},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=34e8911158b32148548a07ad88da6bdb}{%
+           family={Yin},
+           familyi={Y\bibinitperiod},
+           given={Hong},
+           giveni={H\bibinitperiod}}}%
+        {{hash=f7cae3aa58f500a1dd815348f23e8c1e}{%
+           family={Ge},
+           familyi={G\bibinitperiod},
+           given={Wei},
+           giveni={W\bibinitperiod}}}%
+      }
+      \strng{namehash}{57c4362af83933fd2d364b9dfe229923}
+      \strng{fullhash}{90b69f1c5932567758b2738260c973ca}
+      \strng{fullhashraw}{90b69f1c5932567758b2738260c973ca}
+      \strng{bibnamehash}{57c4362af83933fd2d364b9dfe229923}
+      \strng{authorbibnamehash}{57c4362af83933fd2d364b9dfe229923}
+      \strng{authornamehash}{57c4362af83933fd2d364b9dfe229923}
+      \strng{authorfullhash}{90b69f1c5932567758b2738260c973ca}
+      \strng{authorfullhashraw}{90b69f1c5932567758b2738260c973ca}
+      \field{sortinit}{8}
+      \field{sortinithash}{a231b008ebf0ecbe0b4d96dcc159445f}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Autonomous Intelligent Systems}
+      \field{title}{Multi-Agent Reinforcement Learning for Cooperative Lane Changing of Connected and Autonomous Vehicles in Mixed Traffic}
+      \field{volume}{2}
+      \field{year}{2022}
+      \verb{doi}
+      \verb 10.1007/s43684-022-00023-5
+      \endverb
+    \endentry
+    \entry{R13}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=112faefb37293f52cd92c3bb36fcc08b}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Jian},
+           giveni={J\bibinitperiod}}}%
+        {{hash=0946f634474c06293f828796b2f25fa3}{%
+           family={Chang},
+           familyi={C\bibinitperiod},
+           given={Chia-Ming},
+           giveni={C\bibinithyphendelim M\bibinitperiod}}}%
+        {{hash=d66746c5fe8cf86f90169c70a07fb98f}{%
+           family={Zeng},
+           familyi={Z\bibinitperiod},
+           given={Xiaosong},
+           giveni={X\bibinitperiod}}}%
+        {{hash=502de95c3193f5c283f4ef712520a97e}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Li},
+           giveni={L\bibinitperiod}}}%
+      }
+      \strng{namehash}{e45b8b432900977cd9cc4e6630ca865e}
+      \strng{fullhash}{07772a55fe1e60b40bf7fae75a41df43}
+      \strng{fullhashraw}{07772a55fe1e60b40bf7fae75a41df43}
+      \strng{bibnamehash}{e45b8b432900977cd9cc4e6630ca865e}
+      \strng{authorbibnamehash}{e45b8b432900977cd9cc4e6630ca865e}
+      \strng{authornamehash}{e45b8b432900977cd9cc4e6630ca865e}
+      \strng{authorfullhash}{07772a55fe1e60b40bf7fae75a41df43}
+      \strng{authorfullhashraw}{07772a55fe1e60b40bf7fae75a41df43}
+      \field{extraname}{2}
+      \field{sortinit}{9}
+      \field{sortinithash}{0a5ebc79d83c96b6579069544c73c7d4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Intelligent Transportation Systems}
+      \field{title}{Multi-Agent DRL-Based Lane Change With Right-of-Way Collaboration Awareness}
+      \field{volume}{24}
+      \field{year}{2023}
+      \field{pages}{854\bibrangedash 869}
+      \range{pages}{16}
+      \verb{doi}
+      \verb 10.1109/tits.2022.3216288
+      \endverb
+    \endentry
+    \entry{R14}{article}{}{}
+      \name{author}{3}{}{%
+        {{hash=dde508c96df853ed6c6a709d7574294a}{%
+           family={Bi},
+           familyi={B\bibinitperiod},
+           given={Xiaoliang},
+           giveni={X\bibinitperiod}}}%
+        {{hash=bffd8c849576ed2b644e1f1003ae95bf}{%
+           family={He},
+           familyi={H\bibinitperiod},
+           given={Min},
+           giveni={M\bibinitperiod}}}%
+        {{hash=52f7b4f21c478f45188ddf9e7f9a747c}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Yanhua},
+           giveni={Y\bibinitperiod}}}%
+      }
+      \strng{namehash}{cf4235dd0120759410092b4b38e2513e}
+      \strng{fullhash}{b95d63e9e373a35a4e1c01042eee5e81}
+      \strng{fullhashraw}{b95d63e9e373a35a4e1c01042eee5e81}
+      \strng{bibnamehash}{b95d63e9e373a35a4e1c01042eee5e81}
+      \strng{authorbibnamehash}{b95d63e9e373a35a4e1c01042eee5e81}
+      \strng{authornamehash}{cf4235dd0120759410092b4b38e2513e}
+      \strng{authorfullhash}{b95d63e9e373a35a4e1c01042eee5e81}
+      \strng{authorfullhashraw}{b95d63e9e373a35a4e1c01042eee5e81}
+      \field{sortinit}{9}
+      \field{sortinithash}{0a5ebc79d83c96b6579069544c73c7d4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Vehicular Technology}
+      \field{title}{Mix Q-Learning for Lane Changing: A Collaborative Decision-Making Method in Multi-Agent Deep Reinforcement Learning}
+      \field{volume}{74}
+      \field{year}{2025}
+      \field{pages}{8664\bibrangedash 8677}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.1109/tvt.2025.3533006
+      \endverb
+    \endentry
+    \entry{R15}{article}{}{}
+      \name{author}{3}{}{%
+        {{hash=47a5fbc7a1b0a2784297c0ca076aada7}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Anqi},
+           giveni={A\bibinitperiod}}}%
+        {{hash=0300438147cc09fb4f44663b11dbcbba}{%
+           family={Chavez\bibnamedelima Armijos},
+           familyi={C\bibinitperiod\bibinitdelim A\bibinitperiod},
+           given={Andres\bibnamedelima S.},
+           giveni={A\bibinitperiod\bibinitdelim S\bibinitperiod}}}%
+        {{hash=7dd349abebd258362b8f14a38e12272c}{%
+           family={Cassandras},
+           familyi={C\bibinitperiod},
+           given={Christos\bibnamedelima G.},
+           giveni={C\bibinitperiod\bibinitdelim G\bibinitperiod}}}%
+      }
+      \strng{namehash}{5297c6e7eb88e82a15630680778ec6e7}
+      \strng{fullhash}{b75324aaecf7f23f4ea310d4b6cc0c6a}
+      \strng{fullhashraw}{b75324aaecf7f23f4ea310d4b6cc0c6a}
+      \strng{bibnamehash}{b75324aaecf7f23f4ea310d4b6cc0c6a}
+      \strng{authorbibnamehash}{b75324aaecf7f23f4ea310d4b6cc0c6a}
+      \strng{authornamehash}{5297c6e7eb88e82a15630680778ec6e7}
+      \strng{authorfullhash}{b75324aaecf7f23f4ea310d4b6cc0c6a}
+      \strng{authorfullhashraw}{b75324aaecf7f23f4ea310d4b6cc0c6a}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Automatica}
+      \field{title}{Robust Optimal Lane-Changing Control for Connected Autonomous Vehicles in Mixed Traffic}
+      \field{volume}{174}
+      \field{year}{2025}
+      \field{pages}{112169}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.automatica.2025.112169
+      \endverb
+    \endentry
+    \entry{R16}{article}{}{}
+      \name{author}{3}{}{%
+        {{hash=6eecf49389ee27a969babd0faa915b12}{%
+           family={Bizyaeva},
+           familyi={B\bibinitperiod},
+           given={Anastasia},
+           giveni={A\bibinitperiod}}}%
+        {{hash=30b7ce155417c5eaa93497e8f7a7f54e}{%
+           family={Franci},
+           familyi={F\bibinitperiod},
+           given={Alessio},
+           giveni={A\bibinitperiod}}}%
+        {{hash=4a8f7c493dc109ca31debb5ec617bc96}{%
+           family={Leonard},
+           familyi={L\bibinitperiod},
+           given={Naomi\bibnamedelima Ehrich},
+           giveni={N\bibinitperiod\bibinitdelim E\bibinitperiod}}}%
+      }
+      \strng{namehash}{4d6f3315d13c41416f21ab383c941d6c}
+      \strng{fullhash}{9c453018eb8a1897a7116c16124f3350}
+      \strng{fullhashraw}{9c453018eb8a1897a7116c16124f3350}
+      \strng{bibnamehash}{9c453018eb8a1897a7116c16124f3350}
+      \strng{authorbibnamehash}{9c453018eb8a1897a7116c16124f3350}
+      \strng{authornamehash}{4d6f3315d13c41416f21ab383c941d6c}
+      \strng{authorfullhash}{9c453018eb8a1897a7116c16124f3350}
+      \strng{authorfullhashraw}{9c453018eb8a1897a7116c16124f3350}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Automatic Control}
+      \field{title}{Nonlinear Opinion Dynamics With Tunable Sensitivity}
+      \field{volume}{68}
+      \field{year}{2023}
+      \field{pages}{1415\bibrangedash 1430}
+      \range{pages}{16}
+      \verb{doi}
+      \verb 10.1109/TAC.2022.3159527
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+
