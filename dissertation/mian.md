@@ -35,8 +35,6 @@ I hereby confirm that no portion of the work referred to in the thesis has been 
 
 # Copyright statement
 
-# 致谢/Acknowledgments
-
 # 简介/Introduction
 
 ## 背景与动机/Background and Motivation
@@ -99,8 +97,6 @@ This project includes five specific objects. First, establish a nonlinear opinio
 **English.**
 
 This controller adopts a two-layer structure. The upper-layer controller completes the discrete control problem of gap selection through the evaluation of different gaps and the update of opinion dynamics; the lower-layer controller, on the other hand, solves the continuous control problem of actual vehicles by using the actual size and change rate of the gap, as well as the attention parameters obtained through RL learning. 
-
-Fig1: Block diagram of the control system structure
 
 **中文。**
 
@@ -290,6 +286,10 @@ The existence of the waiting interval prevents the gap selected from frequently 
 **中文。**
 
 等待区间的存在避免了 \(C_f\) 与 \(C_r\) 接近时所选 gap 频繁切换，使车辆只有在证据积累到足够程度后才从中性区离开并做出选择。因此，该机制比直接瞬时比较更加平滑。即使离ego车最近的车组选择发生改变，决策也不会因为置信度的跳变而瞬间改变，这也更符合实际驾驶的行为逻辑。
+
+![layered_opinion_decision_schematic](./image/layered_opinion_decision_schematic.png)
+
+Fig2：分层意见决策示意图/layered opinion decision schematic
 
 ## 底层控制系统/Low-Level Control System
 
@@ -902,6 +902,10 @@ $$
 
 ## 多gap并入实验/Multi-Gap Merging Experiment
 
+![multi_gap_environment_schematic](./image/multi_gap_environment_schematic.png)
+
+Fig3：多间隙环境示意图/multi gap environment schematic
+
 **English.**
 
 The multi-gap environment extends the same merging task to a target lane containing five vehicles and four physical gaps. The target vehicles are initialized with a uniform base spacing:
@@ -1007,6 +1011,10 @@ This comparison was evaluated through multiple random ablation experiments. The 
 # 结果和讨论/Results and discussion
 
 ## 单gap SAC 训练/Single-gap SAC Training
+
+![fig1_single_gap_training](./image/fig1_single_gap_training.png)
+
+Fig4：单间隙训练reward/Single-gap training reward
    
 **English.**
 
@@ -1018,29 +1026,35 @@ The training results show that in the initial 50 episodes, the algorithm conduct
 
 ## 与基线 RBF 控制器的对比/Comparison with Baseline RBF Controller
 
+![fig2_single_gap_policy_vs_rbf](./image/fig2_single_gap_policy_vs_rbf.png)
+
+Fig5：SAC与RBFreward对比/Comparison between SAC and RBF reward
+
 **English.**
 
-Compared with the manually designed baselineThe, quantitative results are summarized in Table 1. The SAC policy achieves a significantly higher average episodic reward ($\bar{R}_{\mathrm{SAC}} = 233.4 \pm 4.2$) compared to the RBF baseline ($\bar{R}_{\mathrm{RBF}} = 115.8 \pm 2.1$), yielding an average improvement of approximately +117.6 points.
+Compared with the manually designed baseline, the quantitative results are shown in the table. The SAC strategy achieved significantly higher average episodic reward ($\bar{R}_{\mathrm{SAC}} = 233.4$), while the RBF baseline was only ($\bar{R}_{\mathrm{RBF}} = 115.8$), with an average increase of approximately 117.6 points. Although both strategies achieved 100% success rate and no collisions, the most significant difference lies in the efficiency of task execution. The SAC strategy only takes an average of 6.9 seconds to select the lane change gap. In contrast, the RBF controller consumes 29.45 seconds per round of testing, which is very close to the preset simulation time limit. This indicates that although the RBF manual rules ensure safety, the strategy is overly conservative and fails to fully utilize the longitudinal motion capability of the vehicle. While the SAC agent has learned an aggressive but safe strategy, reducing the task completion time by over 75%. 
 
-While both policies maintained a 100% success rate (progress ≈ 0.95) and zero collisions, the most distinctive difference lies in task efficiency. The SAC policy completes the gap‑acceptance maneuver in $6.9 \pm 0.2$ seconds on average. In contrast, the RBF controller consistently consumes 29.45 seconds per trial, which is remarkably close to the predefined simulation time limit. This indicates that the hand‑crafted RBF rule, while safe, is overly conservative and fails to exploit the available longitudinal motion capability. Conversely, the SAC agent learns an aggressive yet safe strategy, reducing task completion time by over 75%.
-
-Regarding safety metrics, the RBF baseline maintains a larger minimum distance to the target vehicle ($d_{\min} \approx 9.7$ m), reflecting its inherent conservatism. The SAC policy operates closer to the obstacle ($d_{\min} \approx 2.6$ m), yet consistently stays outside the collision radius, demonstrating that the learned policy effectively balances time efficiency and collision avoidance through the optimized reward structure.
+In terms of safety indicators, the RBF baseline maintained a larger minimum distance ($d_{\min} \approx 9.7$ m), reflecting its inherent conservatism. The SAC strategy is closer to the obstacle ($d_{\min} \approx 2.6$ m), but always remains outside the collision radius, proving that the learned strategy can effectively balance time efficiency and collision safety through an optimized reward structure.
 
 **中文。**
 
-与手工设计的基线相对比，定量结果如表所示。SAC 策略获得了显著更高的平均 episodic reward（$\bar{R}_{\mathrm{SAC}} = 233.4 \pm 4.2$），而 RBF 基线仅为（$\bar{R}_{\mathrm{RBF}} = 115.8 \pm 2.1$），平均提升了约 +117.6 分。尽管两种策略均实现了 100% 的成功率（progress ≈ 0.95）且无碰撞，最显著的差异体现在任务执行效率上。SAC 策略平均仅需 $6.9 \pm 0.2$ 秒即可完成换道间隙选择。相比之下，RBF 控制器每轮测试均消耗 29.45 秒，这非常接近预设的仿真时间上限（30 秒）。这表明，尽管 RBF 手工规则保证了安全，但策略过于保守，未能充分利用车辆的纵向运动能力。而 SAC 智能体则学会了激进但安全的策略，将任务完成时间缩短了超过 75%。在安全性指标方面，RBF 基线保持了更大的最小距离（$d_{\min} \approx 9.7$ m），反映了其固有的保守性。SAC 策略虽然更接近障碍物（$d_{\min} \approx 2.6$ m），但始终保持在碰撞半径之外，证明学习到的策略能够通过优化的奖励结构有效平衡时间效率与避碰安全性。
+与手工设计的基线相对比，定量结果如表所示。SAC 策略获得了显著更高的平均 episodic reward（$\bar{R}_{\mathrm{SAC}} = 233.4 $），而 RBF 基线仅为（$\bar{R}_{\mathrm{RBF}} = 115.8 $），平均提升了约 117.6 分。尽管两种策略均实现了 100% 的成功率且无碰撞，最显著的差异体现在任务执行效率上。SAC 策略平均仅需6.9秒即可完成换道间隙选择。相比之下，RBF 控制器每轮测试均消耗 29.45 秒，这非常接近预设的仿真时间上限。这表明，尽管 RBF 手工规则保证了安全，但策略过于保守，未能充分利用车辆的纵向运动能力。而 SAC 智能体则学会了激进但安全的策略，将任务完成时间缩短了超过 75%。在安全性指标方面，RBF 基线保持了更大的最小距离（$d_{\min} \approx 9.7$ m），反映了其固有的保守性。SAC 策略虽然更接近障碍物（$d_{\min} \approx 2.6$ m），但始终保持在碰撞半径之外，证明学习到的策略能够通过优化的奖励结构有效平衡时间效率与避碰安全性。
 
-Table 1: Performance comparison between SAC and RBF controllers (mean ± std, over 100 trials)
+Table 3: Performance comparison between SAC and RBF controllers
 
 | Metric | SAC Policy | RBF Baseline | Improvement |
 | :--- | :--- | :--- | :--- |
 | **Episodic Reward** ($\bar{R}$) | **$233.4 \pm 4.2$** | $115.8 \pm 2.1$ | **+101.5%** |
-| **Task Time (s)** | **$6.9 \pm 0.2$** | $29.45 \pm 0.0$ | **-76.6%** |
+| **Task Time (s)** | **$6.9 \pm 0.2$** | $29.45 \pm 2.4$ | **-76.6%** |
 | **Success Rate** | 100% | 100% | — |
 | **Collision Rate** | 0% | 0% | — |
 | **Min. Distance (m)** | $2.62 \pm 0.23$ | $9.70 \pm 0.01$ | — |
 
 ## 多间隙泛化/Multi-Gap
+
+![fig3_multi_gap_transfer](./image/fig3_multi_gap_transfer.png)
+
+Fig6：多gap泛化实验结果/The results of the multiple gap generalization experiments
 
 **English.**
 
@@ -1056,6 +1070,10 @@ Although the reward remained consistent with that in the single-gap experiment i
 
 ## 高层决策消融实验/High-level decision-making Ablation experiment
 
+![fig4_multi_gap_ablation](./image/fig4_multi_gap_ablation.png)
+
+Fig7：opinion和max高层策略reward对比/Comparison of high-level strategy rewards between Opinion and Max
+
 **English.**
 
 By comparing two high-level decision-making strategies: the Opinion strategy (which provides recommendations based on the attention mechanism) and the Max strategy (which selects the gap that maximizes a certain indicator), the Opinion strategy achieved significantly higher average rewards (+55.3%), indicating that the gap selected by the Opinion strategy is superior to the Max strategy in terms of safety, stability, and overall returns. Although the Max strategy completed tasks in a shorter time (average 8.2 seconds compared to 12.6 seconds) in some cases, its low rewards mainly resulted from larger safety penalties and less smooth control, reflecting that the selected gap might be too aggressive or not conducive to the smooth execution of the underlying strategy. In terms of the number of switches, the Opinion strategy had an average of fewer switch times (0.61 vs 0.76), indicating that the gap suggestions provided by the Opinion strategy have better temporal consistency, reducing the control jitter caused by frequent switching of targets, and facilitating the improvement of passenger comfort and algorithm stability. The success rate of the Opinion strategy (97%) was slightly lower than that of the Max strategy (100%), mainly due to timeout failures caused by exceeding the maximum simulation time. In summary, the Opinion strategy outperformed the Max strategy in terms of total rewards and switch stability, verifying that the high-level decision-making based on attention can more effectively guide the underlying strategy and generate more stable lane-changing behaviors.
@@ -1064,6 +1082,7 @@ By comparing two high-level decision-making strategies: the Opinion strategy (wh
 
 通过对比了两种高层决策策略：Opinion 策略（基于注意力机制给出的推荐间隙）与 Max 策略（选择最大化某一指标的间隙）。Opinion 策略取得了显著更高的平均奖励（+55.3%），表明其选择的间隙在 安全性、平稳性和整体收益上优于 Max 策略。尽管 Max 策略在某些情况下完成时间更短（平均 8.2 s 对比 12.6 s），但其低奖励主要源于较大的安全惩罚和不够平滑的控制，反映出所选间隙可能过于激进或不利于底层策略平稳执行。在切换次数上，Opinion 策略平均切换次数更少（0.61 vs 0.76），说明其提供的间隙建议具有更好的时间一致性，减少了因频繁切换目标导致的底层控制抖动，有利于提升乘坐舒适性和算法稳定性。Opinion 策略的成功率（97%）略低于 Max（100%），主要原因是超过最大仿真时间导致的超时失败。综合来看，Opinion 策略在总奖励和切换稳定性上均优于 Max 策略，验证了基于注意力的高层决策能更有效地引导底层策略，产生更平稳的换道行为。
 
+Table 4: Comparison of high-level strategies between Opinion and Max
 | Metric | Opinion Strategy | Max Strategy | Improvement |
 | :--- | :--- | :--- | :--- |
 | **Mean Episode Reward** (\(\bar{R}\)) | 196.8 | 126.7 | **+55.3%** |
