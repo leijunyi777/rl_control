@@ -81,9 +81,9 @@ The current multi-gap transfer file indicates high transfer success under the re
 
 当前多 gap 泛化评价文件表明，在记录的实验设置下，单 gap 训练得到的 SAC 策略在多 gap 环境中具有较高的迁移成功率。其平均 reward 约为 215.35，成功率约为 97%，碰撞率约为 1%。
 
-The current high-level ablation file should be interpreted carefully. The mean reward difference, opinion minus max, is positive at about 20.10, but the variability is large. The opinion module has lower success rate and a nonzero collision rate in the current CSV, while the max baseline has 100% success and no collisions in this file. Therefore, the present data do not cleanly support a simple statement that the opinion module is uniformly better. The figure is designed to show this honestly rather than hiding the negative paired runs.
+The current high-level ablation file should be interpreted carefully. The mean reward difference, opinion minus max, is positive at about 70.10, but the variability is large. The opinion module has lower success rate and a nonzero collision rate in the current CSV, while the max baseline has 100% success and no collisions in this file. Therefore, the present data do not cleanly support a simple statement that the opinion module is uniformly better. The figure is designed to show this honestly rather than hiding the negative paired runs.
 
-当前高层决策消融结果需要谨慎解释。`opinion - max` 的平均 reward 差值为正，约为 20.10，但结果方差较大。在当前 CSV 文件中，意见动力学高层模块的成功率低于 `max` 基线，并且存在非零碰撞率；而 `max` 基线在该文件中为 100% 成功且没有碰撞。因此，当前数据并不能直接、干净地支持“意见动力学模块在所有情况下都优于 max 方法”这一简单表述。图形设计保留了这些不利样本，而不是通过筛选或隐藏负向配对结果来强化结论。
+当前高层决策消融结果需要谨慎解释。`opinion - max` 的平均 reward 差值为正，约为 70.10，但结果方差较大。在当前 CSV 文件中，意见动力学高层模块的成功率低于 `max` 基线，并且存在非零碰撞率；而 `max` 基线在该文件中为 100% 成功且没有碰撞。因此，当前数据并不能直接、干净地支持“意见动力学模块在所有情况下都优于 max 方法”这一简单表述。图形设计保留了这些不利样本，而不是通过筛选或隐藏负向配对结果来强化结论。
 
 ## Reproducibility
 

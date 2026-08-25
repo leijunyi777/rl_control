@@ -217,15 +217,15 @@ def plot_multi_generalization(ax, rows: list[dict[str, str]]) -> None:
     ax.set_title("Multi-gap transfer evaluation")
     ax.set_yscale("function", functions=(reward_piecewise_forward, reward_piecewise_inverse))
     ax.set_ylim(-1000, 400)
-    ax.set_yticks([-1000, -500, 0, 100, 200, 300, 400])
-    ax.set_yticklabels(["-1000", "-500", "0", "100", "200", "300", "400"])
+    ax.set_yticks([-1000, -500, 100, 200, 300, 400])
+    ax.set_yticklabels(["-1000", "-500", "100", "200", "300", "400"])
     ax.axhline(100.0, color=GRAY, linewidth=0.8, linestyle=":")
     ax.grid(True, color="#E6E6E6", linewidth=0.5)
     ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, -0.24), ncol=3, borderaxespad=0.0)
     success_rate = 100.0 * statistics.fmean(finite(success))
     ax.text(
         1.0,
-        -0.24,
+        -0.14,
         f"Success: {success_rate:.1f}%",
         transform=ax.transAxes,
         va="top",

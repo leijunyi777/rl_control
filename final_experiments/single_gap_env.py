@@ -18,7 +18,7 @@ from scipy.integrate import solve_ivp
 # =========================
 # 与原始 main11/main12 一致的训练和环境参数
 # =========================
-NUM_EPISODES = 100
+NUM_EPISODES = 300
 RENDER_DURING_TRAINING = False
 SIM_TIME = 40.0
 DT = 0.05

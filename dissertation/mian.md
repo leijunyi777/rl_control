@@ -1,3 +1,17 @@
+# 标题/Title
+
+**English.**
+
+A two-layer decision-making system for vehicle lane changing based on reinforcement learning
+
+**中文。**
+
+基于强化学习的车辆并道双层决策系统
+
+# 作者/Author
+
+Junyi Lei/雷君毅 / student ID： 14226506 / Master of Science in Robotics / Year of submission: 2026 
+
 # 摘要/Abstract
 
 **English.**
@@ -20,6 +34,8 @@ I hereby confirm that no portion of the work referred to in the thesis has been 
 本人特此确认，本论文中所述的任何部分内容均未被提交用于申请本校或其他任何大学或学习机构的其他学位或资格。
 
 # Copyright statement
+
+# 致谢/Acknowledgments
 
 # 简介/Introduction
 
@@ -46,7 +62,6 @@ Another important direction is learning-based interactive prediction. Graph neur
 The lane-changing decision-making process exhibits sequentiality, uncertainty, and feedback-driven characteristics. Vehicles need to determine when to wait, when to change lanes, and how to adjust their speed. Traditional fixed-parameter controllers may perform well in static scenarios, but they often lack flexibility when the traffic environment changes or when the system needs to switch between cooperative consensus and competitive divergence. Deep reinforcement learning provides a mechanism for learning decision strategies through repeated interactions. Existing studies have integrated safety rules, future risk assessment, reward shaping, and robust observation modeling into DRL lane-changing strategies [R9-R11]. These studies show that RL should not be used as an unconstrained black box, but should be guided by interpretable state variables, safety-aware reward terms, and robust mechanisms.
 
 At the same time, MARL allows each connected or autonomous vehicle to learn from the behavior of neighboring vehicles while considering group results such as traffic efficiency, comfort, and safety [R12]. Right-of-way coordination and Mix Q-learning further illustrate that the lane-changing task can balance individual benefits with group benefits [R13, R14]. For the project of this paper, these studies support a key idea: RL is not just a direct output of lane-changing actions, but can dynamically adjust the control parameters of the nonlinear decision dynamics model. This enables adaptive changes according to environmental stimuli while still maintaining connection with low-level safety control.
-
 
 **中文**
 
@@ -91,7 +106,9 @@ Fig1: Block diagram of the control system structure
 
 本文控制器采用双层结构。高层控制器通过对不同gap的评价以及意见动力学的更新，完成gap选择的离散控制问题；底层控制器则通过gap的实际大小与变化速率，以及通过RL学习得到的注意力参数，完成实际车辆的连续控制问题。
 
-Fig1：控制系统结构框图
+![Control system structure block diagram](./image/System_block_diagram.png)
+
+Fig1：控制系统结构框图/Control system structure block diagram
 
 ## 高层控制系统/High-Level Control System
 ### 意见动力学与自更新注意力公式/Opinion Dynamics and Self-Updating Attention
@@ -725,10 +742,348 @@ The experiment was organized in a way from simple to complex. The single gap env
 
 ## 单gap并入实验/Single-Gap Merging Experiment
 
+**English.**
+
+The single-gap environment contains one front vehicle, one rear vehicle, and one ego vehicle. The front and rear vehicles travel in the target lane, and their longitudinal separation defines the only available merging gap. The ego vehicle starts from the original lane and attempts to merge into this gap. The lane width is \(W=4.0\,\mathrm{m}\), so the original and target lane centers are \(y_O=0.5W=2.0\,\mathrm{m}\) and \(y_T=1.5W=6.0\,\mathrm{m}\), respectively. The initial target-vehicle states are
+
+**中文。**
+
+单 gap 环境包含一辆目标前车、一辆目标后车和一辆 ego 车。前车与后车位于目标车道，二者之间的纵向间距构成唯一可并入 gap。ego 车从原车道出发，并尝试并入该 gap。车道宽度为 \(W=4.0\,\mathrm{m}\)，因此原车道中心为 \(y_O=0.5W=2.0\,\mathrm{m}\)，目标车道中心为 \(y_T=1.5W=6.0\,\mathrm{m}\)。目标车初始状态为
+
+$$
+x_F(0)=30.0\,\mathrm{m},\qquad
+x_R(0)=15.0\,\mathrm{m},\qquad
+v_F(0)=v_R(0)=15.0\,\mathrm{m/s}.
+$$
+
+**English.**
+
+The ego vehicle has the same initial longitudinal speed but a randomized longitudinal initial position. This randomization makes the training and evaluation less dependent on one special initial alignment. It forces the policy to learn an attention schedule that works when the ego vehicle starts slightly ahead of or behind the gap center.
+
+**中文。**
+
+ego 车具有相同初始纵向速度，但纵向初始位置带有随机扰动，该随机化避免训练和评价只依赖某一个特殊的初始对齐位置，使策略必须在 ego 车领先或落后于gap 中心时仍能给出合理注意力时序。
+
+$$
+x_e(0)=20.0+\xi,\qquad
+\xi\sim\mathcal{U}(-5.0,5.0),\qquad
+y_e(0)=2.0\,\mathrm{m},\qquad
+v_e(0)=15.0\,\mathrm{m/s}.
+$$
+
+**English.**
+
+The rear vehicle is deliberately designed to create a staged merging opportunity. Before \(t_y=20.0\,\mathrm{s}\), the rear vehicle follows a sinusoidal acceleration law. Let
+
+**中文。**
+
+后车运动被设计成分阶段生成并道机会。在 \(t_y=20.0\,\mathrm{s}\) 之前，后车采用正弦加速度。令
+
+$$
+\omega_s=\frac{2\pi}{P_s},\qquad
+P_s=6.0\,\mathrm{s},\qquad
+A_s=4.0\,\mathrm{m/s}.
+$$
+
+**English.**
+
+For \(0\leq t\leq t_y\), the rear-vehicle acceleration, velocity, and position are
+
+**中文。**
+
+当 \(0\leq t\leq t_y\) 时，后车加速度、速度和位置为
+
+$$
+a_R(t)=A_s\omega_s\cos(\omega_s t),
+$$
+
+$$
+v_R(t)=v_R(0)+A_s\sin(\omega_s t),
+$$
+
+$$
+x_R(t)=x_R(0)+v_R(0)t+\frac{A_s}{\omega_s}\left[1-\cos(\omega_s t)\right].
+$$
+
+**English.**
+
+Since the front vehicle travels with constant speed \(v_F=15.0\,\mathrm{m/s}\), the front-rear gap before yielding is therefore
+
+**中文。**
+
+前车保持匀速 \(v_F=15.0\,\mathrm{m/s}\),于是让行前的前后车 gap 可写为
+
+$$
+g(t)=x_F(t)-x_R(t)
+=15.0-\frac{A_s}{\omega_s}\left[1-\cos(\omega_s t)\right],
+\qquad
+0\leq t\leq20.0.
+$$
+
+**English.**
+
+After \(20.0\,\mathrm{s}\), the rear vehicle starts yielding by tracking a desired front-rear gap \(g_{\mathrm{yield}}=20.0\,\mathrm{m}\). The rear-vehicle acceleration becomes:
+
+**中文。**
+
+在 \(20.0\,\mathrm{s}\) 之后，后车开始让行，并跟踪期望 gap \(g_{\mathrm{yield}}=20.0\,\mathrm{m}\)。后车加速度变为
+
+$$
+a_R(t)=
+\mathrm{clip}
+\left(
+0.35\left[g(t)-20.0\right]
+-1.1\left[v_R(t)-v_F(t)\right],
+-5.0,
+2.0
+\right),
+\qquad
+t>20.0.
+$$
+
+**English.**
+
+Equivalently, the gap dynamics after yielding are governed by
+
+**中文。**
+
+等价地，让行后的 gap 动态满足
+
+$$
+\dot{g}(t)=v_F(t)-v_R(t),
+\qquad
+\ddot{g}(t)=-a_R(t),
+\qquad
+t>20.0.
+$$
+
+**English.**
+
+This piecewise construction has a clear purpose. Before \(20.0\,\mathrm{s}\), the gap is not intentionally opened for the ego vehicle, so the policy should avoid premature aggressive merging. After \(20.0\,\mathrm{s}\), the rear vehicle creates a larger gap and the correct behavior is to increase attention \(u(t)\), allow the opinion \(z(t)\) to grow, and move the target point toward the target lane.
+
+**中文。**
+
+这个分段构造具有明确实验含义。在 \(20.0\,\mathrm{s}\) 之前，目标 gap 并未主动为 ego 车打开，因此策略不应过早激进并道；在 \(20.0\,\mathrm{s}\) 之后，后车开始创造更大 gap，合理策略应提高注意力 \(u(t)\)，使意见 \(z(t)\) 增长，并把目标点推向目标车道。
+
+**English.**
+
+The SAC agent uses a Gaussian policy with two hidden layers of width \(256\), two Q networks, target Q networks, replay-buffer learning, and entropy regularization. The main training parameters are \(200\) episodes, replay-buffer size \(2.0\times10^5\), batch size \(256\), \(1000\) initial random steps, discount factor \(\gamma=0.99\), target-update rate \(\tau=0.005\), and learning rates \(3\times10^{-4}\) for the policy, Q networks, and entropy temperature. The subsequent value comparison is also carried out using the same "reward" as defined in the previous text. The same reward definition is used during value comparison so that the learned and hand-designed policies are judged by an identical metric.The baseline comparison evaluates the trained SAC attention against the original hand-designed RBF attention:
+
+**中文。**
+
+SAC agent 使用高斯策略网络、两个 Q 网络、目标 Q 网络、经验回放和熵正则化。主要训练参数为：训练 \(200\) 个 episode，经验池容量 \(2.0\times10^5\)，batch size 为 \(256\)，初始随机探索步数为 \(1000\)，折扣因子 \(\gamma=0.99\)，目标网络软更新系数 \(\tau=0.005\)，policy、Q 网络和熵温度学习率均为 \(3\times10^{-4}\)。后续价值对比也由前文定义的同一reward执行，因此学习策略和手工策略由完全一致的指标评价。对照基线为原始手工设计的 RBF 注意力：
+
+$$
+u_{\mathrm{RBF}}(t)=
+u_{\mathrm{base}}+
+u_{\mathrm{amp}}
+\exp
+\left(
+-\frac{d_g(t)^2}{2\sigma_d^2}
+-\frac{\Delta v_g(t)^2}{2\sigma_v^2}
+\right).
+$$
+
+**English.**
+
+The evaluation repeats the simulation \(100\) times with shared random ego initial positions. For each random seed, both policies face the same initial \(x_e(0)\) and the same target-vehicle trajectory. The comparison reports the episode reward of each trial and the mean and standard deviation across trials:
+
+**中文。**
+
+评价阶段重复 \(100\) 次仿真，并使用共享的随机 ego 初始位置。对每一个随机种子，SAC 策略和 RBF 策略面对完全相同的 \(x_e(0)\) 和目标车轨迹。最终比较每次 episode reward，并统计多次试验的均值与标准差：
+
+$$
+\bar{R}_{\mathrm{SAC}}=\frac{1}{N_{\mathrm{eval}}}\sum_{j=1}^{N_{\mathrm{eval}}}R_{\mathrm{SAC}}^{(j)},
+\qquad
+\bar{R}_{\mathrm{RBF}}=\frac{1}{N_{\mathrm{eval}}}\sum_{j=1}^{N_{\mathrm{eval}}}R_{\mathrm{RBF}}^{(j)},
+\qquad
+N_{\mathrm{eval}}=100.
+$$
 
 ## 多gap并入实验/Multi-Gap Merging Experiment
+
+**English.**
+
+The multi-gap environment extends the same merging task to a target lane containing five vehicles and four physical gaps. The target vehicles are initialized with a uniform base spacing:
+
+**中文。**
+
+多 gap 环境把同一并道任务扩展到包含五辆目标车和四个物理 gap 的目标车道。目标车队以统一基础间距初始化：
+
+$$
+N=5,\qquad
+x_i(0)=48.0-(i-1)g_0,\qquad
+g_0=8.0\,\mathrm{m},\qquad
+i=1,\ldots,5.
+$$
+
+**English.**
+
+All target vehicles start on the target-lane center \(y_T=6.0\,\mathrm{m}\) with nominal speed \(15.0\,\mathrm{m/s}\). The ego vehicle starts from the original lane with a larger longitudinal randomization range than in the single-gap experiment. The larger random range changes which three vehicles are nearest to the ego vehicle at the beginning of an episode. Therefore, the high-level selector must work under different local traffic configurations rather than repeatedly facing one fixed gap.
+
+
+**中文。**
+
+所有目标车初始位于目标车道中心 \(y_T=6.0\,\mathrm{m}\)，名义速度为 \(15.0\,\mathrm{m/s}\)。ego 车从原车道出发，并且相对于单 gap 实验使用更大的纵向随机范围。更大的随机范围会改变每个 episode 开始时距离 ego 最近的三辆目标车，因此高层选择器必须面对不同的局部交通构型，而不是反复处理同一个固定 gap。
+
+$$
+x_e(0)=30.0+\xi,\qquad
+\xi\sim\mathcal{U}(-10.0,15.0),\qquad
+y_e(0)=2.0\,\mathrm{m},\qquad
+v_e(0)=15.0\,\mathrm{m/s}.
+$$
+
+**English.**
+
+The four target-lane gaps are randomly adjusted over time. Every \(T_g=4.0\,\mathrm{s}\), at most two gaps are selected for modification, and each selected gap receives a desired spacing from the multiplier set
+
+**中文。**
+
+四个目标车道 gap 会随时间随机调整。每隔 \(T_g=4.0\,\mathrm{s}\)，最多两个 gap 会被选中改变期望间距，被选中的 gap 从倍率集合中抽取一个倍率：
+
+$$
+\mathcal{M}=\{0.75,1.0,1.25,1.5\}.
+$$
+
+**English.**
+
+The leading target vehicle has zero acceleration. Each following target vehicle tracks the desired gap in front of it through a clipped proportional-derivative rule:
+
+**中文。**
+
+目标车队最前车加速度为零。每一辆跟随目标车用裁剪后的 PD 规则跟踪其前方期望 gap：
+
+$$
+a_{i+1}(t)=
+\mathrm{clip}
+\left(
+0.55\left[g_i(t)-g_{i,\mathrm{des}}^{(k)}\right]
+ +1.05\dot{g}_i(t),
+-4.0,
+4.0
+\right).
+$$
+
+**English.**
+
+This mechanism produces a target lane in which gaps open, close, and reconfigure during the \(40.0\,\mathrm{s}\) simulation. The high-level decision module selects the nearest three target-lane vehicles in longitudinal front-axle coordinate and compares the two local gaps formed by these vehicles. The main purpose of the multi-gap experiment is to verify the generalization ability. The underlying strategy uses the attention strategy learned in the single-gap environment. This design tests whether a strategy that only learns \(u(t)\) for a single pair of preceding and following vehicles remains effective when the high-level selector continuously provides different pairs of preceding and following vehicles. If the strategy is generalizable, then even if the gap selection and gap environment change, the ego vehicle should still be able to smoothly enter the selected gap.
+
+**中文。**
+
+该机制使目标车道中的 gap 在 \(40.0\,\mathrm{s}\) 仿真中持续打开、闭合和重构。高层决策模块在每一步根据前轴纵向坐标选择距离 ego 最近的三辆目标车，并比较这三辆车形成的两个局部 gap。多 gap 实验的主要目的在于验证泛化能力。底层策略使用单 gap 环境中学到的注意力策略。这样的设计检验了一个只针对单个前后车 pair 学习 \(u(t)\) 的策略，在高层选择器不断提供不同前后车 pair 时是否仍然有效。如果策略具有泛化性，那么即使gap选择和gap环境在变化，ego 车仍应能够平滑进入所选 gap。
+
+**English.**
+
+The high-level ablation compares the opinion-dynamics selector with a simple maximum-score selector. The maximum-score baseline removes the high-level opinion memory and chooses the locally better gap instantaneously:
+
+**中文。**
+
+高层消融实验比较意见动力学选择器与简单最大评分选择器。最大评分基线去掉高层意见记忆，并瞬时选择局部评分更高的 gap：
+
+$$
+i_k^{\star}=\arg\max_i S_i(t_k),
+$$
+
+**English.**
+
+where \(S_i(t_k)\) is the instantaneous confidence or gap-evaluation score of candidate gap \(i\). The proposed opinion-dynamics selector instead integrates the confidence difference over time:
+
+**中文。**
+
+其中 \(S_i(t_k)\) 表示候选 gap \(i\) 的瞬时置信度或 gap 评价分数。本文方法则通过意见动力学持续积分置信度差值：
+
+$$
+\dot{y}(t)=-d_y y(t)+u_h(t)\tanh(\alpha_y y(t))+C_f(t)-C_r(t).
+$$
+
+**English.**
+
+This comparison was evaluated through multiple random ablation experiments. The current test setup uses \(N_{\mathrm{test}} = 100\) random runs. For each method, the total reward and the number of times the selected gap was switched were compared.
+
+**中文。**
+
+该对比通过多次随机消融试验评价。当前测试设置使用 \(N_{\mathrm{test}}=100\) 次随机运行。对每种方法，对比总reward和被选 gap 切换次数。
+
 # 结果和讨论/Results and discussion
+
+## 单gap SAC 训练/Single-gap SAC Training
+   
+**English.**
+
+The training results show that in the initial 50 episodes, the algorithm conducted extensive exploration, resulting in significant fluctuations in the reward. The algorithm converged after 50 episodes. The SAC agent converged within 50 episodes, achieving a stable episodic reward of 230±10 (Figure X). The Q1-loss decreased from an initial peak of 134 to below 20, indicating accurate value function    approximation. The entropy coefficient α decayed monotonically from 0.96 to 0.12, confirming a smooth transition from exploration to exploitation. The policy consistently reached the target gap (progress ≥ 0.95) with a 97.5% success rate (195/200) and zero collisions. The average control command (mean_u) stabilized around 1.9, suggesting an efficient, non-conservative driving policy. These results demonstrate that SAC effectively learns a robust and safe gap-acceptance strategy.
+
+**中文。**
+
+训练结果显示，在初始的50个episodes里，算法进行了广泛的探索，导致reward波动剧烈，在50个episodes后完成收敛，获得稳定的回合奖励为230±10。Q1损失从初始峰值134下降至低于20，表明价值函数逼近准确。熵系数α从0.96单调衰减至0.12，证实了从探索到利用的平滑过渡。策略持续达到目标间隙（进展≥0.95），成功率达到97.5%（195/200），且无碰撞发生。平均控制指令（mean_u）稳定在约1.9，表明驾驶策略高效且非保守。这些结果表明，SAC能够有效学习出一种稳健且安全的间隙接受策略。
+
+## 与基线 RBF 控制器的对比/Comparison with Baseline RBF Controller
+
+**English.**
+
+Compared with the manually designed baselineThe, quantitative results are summarized in Table 1. The SAC policy achieves a significantly higher average episodic reward ($\bar{R}_{\mathrm{SAC}} = 233.4 \pm 4.2$) compared to the RBF baseline ($\bar{R}_{\mathrm{RBF}} = 115.8 \pm 2.1$), yielding an average improvement of approximately +117.6 points.
+
+While both policies maintained a 100% success rate (progress ≈ 0.95) and zero collisions, the most distinctive difference lies in task efficiency. The SAC policy completes the gap‑acceptance maneuver in $6.9 \pm 0.2$ seconds on average. In contrast, the RBF controller consistently consumes 29.45 seconds per trial, which is remarkably close to the predefined simulation time limit. This indicates that the hand‑crafted RBF rule, while safe, is overly conservative and fails to exploit the available longitudinal motion capability. Conversely, the SAC agent learns an aggressive yet safe strategy, reducing task completion time by over 75%.
+
+Regarding safety metrics, the RBF baseline maintains a larger minimum distance to the target vehicle ($d_{\min} \approx 9.7$ m), reflecting its inherent conservatism. The SAC policy operates closer to the obstacle ($d_{\min} \approx 2.6$ m), yet consistently stays outside the collision radius, demonstrating that the learned policy effectively balances time efficiency and collision avoidance through the optimized reward structure.
+
+**中文。**
+
+与手工设计的基线相对比，定量结果如表所示。SAC 策略获得了显著更高的平均 episodic reward（$\bar{R}_{\mathrm{SAC}} = 233.4 \pm 4.2$），而 RBF 基线仅为（$\bar{R}_{\mathrm{RBF}} = 115.8 \pm 2.1$），平均提升了约 +117.6 分。尽管两种策略均实现了 100% 的成功率（progress ≈ 0.95）且无碰撞，最显著的差异体现在任务执行效率上。SAC 策略平均仅需 $6.9 \pm 0.2$ 秒即可完成换道间隙选择。相比之下，RBF 控制器每轮测试均消耗 29.45 秒，这非常接近预设的仿真时间上限（30 秒）。这表明，尽管 RBF 手工规则保证了安全，但策略过于保守，未能充分利用车辆的纵向运动能力。而 SAC 智能体则学会了激进但安全的策略，将任务完成时间缩短了超过 75%。在安全性指标方面，RBF 基线保持了更大的最小距离（$d_{\min} \approx 9.7$ m），反映了其固有的保守性。SAC 策略虽然更接近障碍物（$d_{\min} \approx 2.6$ m），但始终保持在碰撞半径之外，证明学习到的策略能够通过优化的奖励结构有效平衡时间效率与避碰安全性。
+
+Table 1: Performance comparison between SAC and RBF controllers (mean ± std, over 100 trials)
+
+| Metric | SAC Policy | RBF Baseline | Improvement |
+| :--- | :--- | :--- | :--- |
+| **Episodic Reward** ($\bar{R}$) | **$233.4 \pm 4.2$** | $115.8 \pm 2.1$ | **+101.5%** |
+| **Task Time (s)** | **$6.9 \pm 0.2$** | $29.45 \pm 0.0$ | **-76.6%** |
+| **Success Rate** | 100% | 100% | — |
+| **Collision Rate** | 0% | 0% | — |
+| **Min. Distance (m)** | $2.62 \pm 0.23$ | $9.70 \pm 0.01$ | — |
+
+## 多间隙泛化/Multi-Gap
+
+**English.**
+
+The low-level SAC strategy was trained in a single-gap environment and then directly deployed to a dynamic multi-gap scenario. The experimental results show that it has good generalization ability in terms of safety and task completion: the success rate remains at a high level (≈0.97). Even if the high-level selector switches, in the vast majority of cases, the low-level strategy never violates the safety boundary. These data confirm that the SAC strategy has a generalization ability.
+
+Although the reward remained consistent with that in the single-gap experiment in most cases, in some special circumstances, the strategy might deteriorate and lead to failure. Through the analysis of the experimental data of failures and low rewards, the specific reasons mainly fall into two aspects: the repeated decision-making caused by the complex environment, resulting in a long decision-making time exceeding the maximum simulation time and leading to task failure; and the decision being at a local optimal solution, resulting in overly cautious actions and excessive time spent, thereby causing a serious deduction in the step term. The reasons for the decline in generalization performance may be that too little environmental information was input during training, and only the instantaneous state was focused on while ignoring the changes on the time scale.
+
+**中文。**
+
+将低级SAC策略在单间隙环境中进行训练，随后被直接部署到动态多间隙场景中。实验结果表明其在安全性和任务完成方面具有良好的泛化能力：成功率保持较高水平（≈0.97）。即使高层选择器切换，在绝大多数情况下，低级策略也从未违反安全边界。这些数据证实，SAC策略已具备一种可泛化的能力。
+
+虽然reward在大部分实验里保持与单gap一致，但在部分特殊情况下，策略可能发生退化并导致失败，通过对失败和低reward的实验数据分析，其具体原因主要分为两个方面：复杂环境带来的决策反复变动，导致决策时间过长，超过最大仿真时间导致任务失败，以及决策处于局部最优解，导致动作过于谨慎和并入时间过长，进而在步长项上扣分严重。产生这些泛化性能下降的原因可能是在训练中输入环境信息太少，且只关注瞬时状态而忽略在时间尺度上的变化。
+
+## 高层决策消融实验/High-level decision-making Ablation experiment
+
+**English.**
+
+By comparing two high-level decision-making strategies: the Opinion strategy (which provides recommendations based on the attention mechanism) and the Max strategy (which selects the gap that maximizes a certain indicator), the Opinion strategy achieved significantly higher average rewards (+55.3%), indicating that the gap selected by the Opinion strategy is superior to the Max strategy in terms of safety, stability, and overall returns. Although the Max strategy completed tasks in a shorter time (average 8.2 seconds compared to 12.6 seconds) in some cases, its low rewards mainly resulted from larger safety penalties and less smooth control, reflecting that the selected gap might be too aggressive or not conducive to the smooth execution of the underlying strategy. In terms of the number of switches, the Opinion strategy had an average of fewer switch times (0.61 vs 0.76), indicating that the gap suggestions provided by the Opinion strategy have better temporal consistency, reducing the control jitter caused by frequent switching of targets, and facilitating the improvement of passenger comfort and algorithm stability. The success rate of the Opinion strategy (97%) was slightly lower than that of the Max strategy (100%), mainly due to timeout failures caused by exceeding the maximum simulation time. In summary, the Opinion strategy outperformed the Max strategy in terms of total rewards and switch stability, verifying that the high-level decision-making based on attention can more effectively guide the underlying strategy and generate more stable lane-changing behaviors.
+
+**中文。**
+
+通过对比了两种高层决策策略：Opinion 策略（基于注意力机制给出的推荐间隙）与 Max 策略（选择最大化某一指标的间隙）。Opinion 策略取得了显著更高的平均奖励（+55.3%），表明其选择的间隙在 安全性、平稳性和整体收益上优于 Max 策略。尽管 Max 策略在某些情况下完成时间更短（平均 8.2 s 对比 12.6 s），但其低奖励主要源于较大的安全惩罚和不够平滑的控制，反映出所选间隙可能过于激进或不利于底层策略平稳执行。在切换次数上，Opinion 策略平均切换次数更少（0.61 vs 0.76），说明其提供的间隙建议具有更好的时间一致性，减少了因频繁切换目标导致的底层控制抖动，有利于提升乘坐舒适性和算法稳定性。Opinion 策略的成功率（97%）略低于 Max（100%），主要原因是超过最大仿真时间导致的超时失败。综合来看，Opinion 策略在总奖励和切换稳定性上均优于 Max 策略，验证了基于注意力的高层决策能更有效地引导底层策略，产生更平稳的换道行为。
+
+| Metric | Opinion Strategy | Max Strategy | Improvement |
+| :--- | :--- | :--- | :--- |
+| **Mean Episode Reward** (\(\bar{R}\)) | 196.8 | 126.7 | **+55.3%** |
+| **Mean Switch Count** | 0.61 | 0.76 | **-19.7%** |
+| **Mean Completion Time (s)** | 12.6 | 8.2 | — |
+| **Success Rate** | **97%** | 100% | — |
+
 # 结论/Conclusions
+
+**English.**
+
+The two-layer opinion dynamics framework provides an interpretable and experimentally verifiable method for automatic lane merging. The upper layer makes a choice in the local candidate gap by smoothing the confidence difference and self-updating attention; the lower layer executes the selected action through objective gap bias, learning or parsing attention, opinion-driven target point interpolation, and tracking control with safety obstacle avoidance. 
+
+Comprehensive experiments show that the SAC lower strategy trained in a single-gap scenario using this framework can converge stably and significantly outperform the manually designed RBF controller, verifying the advantages of learning-based strategies in balancing efficiency and safety. In the multi-gap generalization test, the lower strategy maintains a high safety success rate, demonstrating its certain generalization ability; however, in some difficult scenarios, there is a decrease in efficiency or timeout failure, indicating that the current lower strategy's adaptability to dynamic switching environments is still insufficient. The main reason lies in the lack of temporal context information in the state space during training and the inability of the lower layer to perceive the switching of the upper layer or detect the unfeasibility of the gap. The decision-making ablation experiment of the attention-based Opinion strategy shows that it outperforms the Max strategy in total rewards and has fewer switching times, indicating that reasonable upper-layer guidance can effectively improve overall performance.
+
+**中文。**
+双层意见动力学框架为自动并道提供了一种可解释且便于实验验证的方法。高层通过平滑置信度差值和自更新注意力在局部候选 gap 中做选择；底层通过客观 gap 偏置、学习或解析注意力、意见驱动的目标点插值，以及带安全避障的跟踪控制来执行所选动作。
+
+综合实验表明，该框架在单间隙场景中训练得到的 SAC 底层策略能够稳定收敛，并显著优于手工 RBF 控制器，验证了学习型策略在效率与安全性平衡上的优势。在多间隙泛化测试中，底层策略保持了较高的安全成功率，证明其具备一定的泛化能力；但部分困难场景下出现效率退化或超时失败，说明当前底层策略对动态切换环境的适应性仍有不足，其主要原因在于训练时状态空间缺乏时间上下文信息，且底层无法感知高层切换或反馈间隙不可行性。高层决策消融实验显示，基于注意力的 Opinion 策略在总奖励上优于 Max 策略，且切换次数更少，表明合理的高层引导能有效提升整体性能。
+
 # 参考文献/References
 
 R1. Qu, D., Zhang, K., Song, H., Jia, Y., & Dai, S. (2022). Analysis and Modeling of Lane-Changing Game Strategy for Autonomous Driving Vehicles. *IEEE Access, 10*, 69531-69542. https://doi.org/10.1109/access.2022.3187431
@@ -762,6 +1117,58 @@ R14. Bi, X., He, M., & Sun, Y. (2025). Mix Q-Learning for Lane Changing: A Colla
 R15. Li, A., Chavez Armijos, A. S., & Cassandras, C. G. (2025). Robust optimal lane-changing control for Connected Autonomous Vehicles in mixed traffic. *Automatica, 174*, 112169. https://doi.org/10.1016/j.automatica.2025.112169
 
 R16. Bizyaeva, A., Franci, A., & Leonard, N. E. (2023). Nonlinear Opinion Dynamics with Tunable Sensitivity. IEEE Transactions on Automatic Control, 68, 1415-1430. https://doi.org/10.1109/TAC.2022.3159527
+
+# 附录/Appendices
+## project outline
+## Risk Assessment
+## Experimental Parameter Summary / 实验参数总结
+
+| Category / 类别 | Symbol / 符号 | Value / 数值 | Description / 说明 |
+| :--- | :--- | :--- | :--- |
+| Simulation / 仿真 | \(T\) | \(40.0\,\mathrm{s}\) | Episode duration / 单次仿真总时长 |
+| Simulation / 仿真 | \(\Delta t\) | \(0.05\,\mathrm{s}\) | Integration interval / 数值积分步长 |
+| Road / 道路 | \(W\) | \(4.0\,\mathrm{m}\) | Lane width / 车道宽度 |
+| Road / 道路 | \(y_O,y_T\) | \(2.0\,\mathrm{m},6.0\,\mathrm{m}\) | Original and target lane centers / 原车道与目标车道中心 |
+| Vehicle / 车辆 | \(L\) | \(2.8\,\mathrm{m}\) | Vehicle wheelbase / 车辆轴距 |
+| Safety / 安全 | \(r\) | \(1.5\,\mathrm{m}\) | Collision boundary radius / 碰撞边界半径 |
+| Single-gap initial state / 单 gap 初始状态 | \(x_F(0),x_R(0)\) | \(30.0\,\mathrm{m},15.0\,\mathrm{m}\) | Front and rear target-vehicle initial positions / 前后目标车初始位置 |
+| Single-gap initial state / 单 gap 初始状态 | \(x_e(0)\) | \(20.0+\mathcal{U}(-5.0,5.0)\,\mathrm{m}\) | Ego randomized initial position / ego 随机初始纵向位置 |
+| Single-gap rear motion / 单 gap 后车运动 | \(t_y\) | \(20.0\,\mathrm{s}\) | Yielding starts after this time / 后车开始让行时间 |
+| Single-gap rear motion / 单 gap 后车运动 | \(A_s,P_s\) | \(4.0\,\mathrm{m/s},6.0\,\mathrm{s}\) | Sinusoidal velocity amplitude and period before yielding / 让行前正弦速度幅值与周期 |
+| Single-gap rear motion / 单 gap 后车运动 | \(g_{\mathrm{yield}}\) | \(20.0\,\mathrm{m}\) | Desired front-rear gap after yielding / 让行后目标 gap |
+| Single-gap rear motion / 单 gap 后车运动 | \(a_R\) clip | \([-5.0,2.0]\,\mathrm{m/s^2}\) | Rear-vehicle acceleration bounds after yielding / 后车让行控制加速度范围 |
+| Single-gap low level / 单 gap 底层 | \(g_{\mathrm{safe}}\) | \(10.0\,\mathrm{m}\) | Safe-gap threshold for single-gap training / 单 gap 训练中的安全 gap 阈值 |
+| SAC training / SAC 训练 | \(N_{\mathrm{ep}}\) | \(200\) | Training episodes / 训练轮次 |
+| SAC training / SAC 训练 | \(N_{\mathrm{rand}}\) | \(1000\) steps | Initial random exploration steps / 初始随机探索步数 |
+| SAC training / SAC 训练 | \(\gamma,\tau\) | \(0.99,0.005\) | Discount factor and target-network update rate / 折扣因子与目标网络软更新系数 |
+| SAC training / SAC 训练 | \(B_{\mathrm{batch}}\) | \(256\) | Batch size / 批量大小 |
+| SAC training / SAC 训练 | \(\mathcal{D}\) | \(200000\) | Replay-buffer capacity / 经验池容量 |
+| SAC training / SAC 训练 | \(\eta_{\pi},\eta_Q,\eta_{\alpha}\) | \(3\times10^{-4}\) | Policy, Q-network, and entropy-temperature learning rates / 策略、Q 网络和熵温度学习率 |
+| SAC training / SAC 训练 | \(H\) | \(256\) | Hidden-layer width / 隐藏层宽度 |
+| SAC action / SAC 动作 | \(u_{\min},u_{\max}\) | \(0.0,3.0\) | Learned attention range / 学习注意力范围 |
+| Single-gap evaluation / 单 gap 评价 | \(N_{\mathrm{eval}}\) | \(10\) | Repeated value-comparison runs / 重复 reward 对比次数 |
+| RBF baseline / RBF 基线 | \(u_{\mathrm{base}},u_{\mathrm{amp}}\) | \(0.2,2.5\) | Hand-designed attention baseline parameters / 手工注意力参数 |
+| RBF baseline / RBF 基线 | \(\sigma_d,\sigma_v\) | \(2.0,1.5\) | Single-gap RBF position and velocity bandwidths / 单 gap RBF 位置与速度尺度 |
+| Multi-gap fleet / 多 gap 车队 | \(N\) | \(5\) | Number of target-lane vehicles / 目标车数量 |
+| Multi-gap fleet / 多 gap 车队 | \(N_g\) | \(4\) | Number of physical gaps / 物理 gap 数量 |
+| Multi-gap initial state / 多 gap 初始状态 | \(x_i(0)\) | \(48.0-(i-1)8.0\,\mathrm{m}\) | Target-vehicle initial positions / 目标车初始位置 |
+| Multi-gap initial state / 多 gap 初始状态 | \(x_e(0)\) | \(30.0+\mathcal{U}(-10.0,10.0)\,\mathrm{m}\) | Ego randomized initial position / ego 随机初始纵向位置 |
+| Multi-gap schedule / 多 gap 调度 | \(g_0\) | \(8.0\,\mathrm{m}\) | Base desired gap / 基础期望 gap |
+| Multi-gap schedule / 多 gap 调度 | \(T_g\) | \(4.0\,\mathrm{s}\) | Gap adjustment interval / gap 调整周期 |
+| Multi-gap schedule / 多 gap 调度 | \(\mathcal{M}\) | \(\{0.75,1.0,1.25,1.5\}\) | Desired-gap multiplier set / 期望 gap 倍率集合 |
+| Multi-gap schedule / 多 gap 调度 | \(N_{\mathrm{chg}}\) | \(\leq2\) gaps/period | Maximum changed gaps per period / 每周期最多调整 gap 数 |
+| Multi-gap following / 多 gap 跟驰 | \(k_p^g,k_d^g\) | \(0.55,1.05\) | Gap-tracking gains / gap 跟踪增益 |
+| Multi-gap following / 多 gap 跟驰 | \(a_{\max}^g\) | \(4.0\,\mathrm{m/s^2}\) | Target-vehicle acceleration limit / 目标车加速度裁剪 |
+| High-level opinion / 高层意见 | \(d_y,\alpha_y\) | \(2.5,10.0\) | High-level damping and sensitivity / 高层阻尼与灵敏度 |
+| High-level attention / 高层注意力 | \(\tau_h,U_{\max},K_h,n\) | \(1.0,1.5,0.2,2.0\) | Self-updating attention parameters / 自更新注意力参数 |
+| High-level decision / 高层决策 | \(\theta_y\) | \(0.18\) | Waiting-band decision threshold / 等待区间阈值 |
+| Multi-gap confidence / 多 gap 置信度 | \(\sigma_d,\sigma_v\) | \(4.0,2.5\) | Confidence bandwidths for local gap comparison / 局部 gap 比较中的位置与速度尺度 |
+| Low-level opinion / 底层意见 | \(g_{\mathrm{safe}},k_g,k_v\) | \(5.0\,\mathrm{m},0.2,0.1\) | Gap-bias parameters in multi-gap execution / 多 gap 执行中的 gap 偏置参数 |
+| Low-level opinion / 底层意见 | \(d_z,\alpha_z\) | \(2.0,2.0\) | Low-level opinion damping and sensitivity / 底层意见阻尼与灵敏度 |
+| Multi-gap evaluation / 多 gap 评价 | \(N_{\mathrm{test}}\) | \(100\) | Random repeated test runs / 随机重复测试次数 |
+| Physical input / 物理输入 | \(a\) clip | \([-5.0,5.0]\,\mathrm{m/s^2}\) | Ego acceleration bounds / ego 加速度裁剪 |
+| Physical input / 物理输入 | \(\omega\) clip | \([-0.8,0.8]\,\mathrm{rad/s}\) | Ego steering-rate bounds / ego 转角变化率裁剪 |
+
 
 
 
