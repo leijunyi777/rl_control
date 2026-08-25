@@ -32,10 +32,10 @@ NUM_TARGET_VEHICLES = 5
 BASE_GAP = 8.0
 GAP_MULTIPLIERS = (0.75, 1.0, 1.25, 1.5)
 
-MULTI_EGO_X_BASE = 30.0
-MULTI_EGO_X_RANDOM_RANGE = 10.0
-MULTI_EGO_X_MIN = MULTI_EGO_X_BASE - MULTI_EGO_X_RANDOM_RANGE
-MULTI_EGO_X_MAX = MULTI_EGO_X_BASE + MULTI_EGO_X_RANDOM_RANGE
+MULTI_EGO_X_MIN = 20.0
+MULTI_EGO_X_MAX = 45.0
+MULTI_EGO_X_BASE = 0.5 * (MULTI_EGO_X_MIN + MULTI_EGO_X_MAX)
+MULTI_EGO_X_RANDOM_RANGE = 0.5 * (MULTI_EGO_X_MAX - MULTI_EGO_X_MIN)
 
 TARGET_LANE_Y = LANE_WIDTH * 1.5
 EGO_LANE_Y = LANE_WIDTH * 0.5
@@ -133,9 +133,10 @@ def draw_arrow(ax, start: tuple[float, float], end: tuple[float, float], color: 
         zorder=8,
     )
     ax.add_patch(arrow)
-    mid_x = 0.5 * (start[0] + end[0])
-    mid_y = 0.5 * (start[1] + end[1])
-    ax.text(mid_x, mid_y, label, color=color, fontsize=7, ha="center", va="center", bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.2}, zorder=9)
+    if label:
+        mid_x = 0.5 * (start[0] + end[0])
+        mid_y = 0.5 * (start[1] + end[1])
+        ax.text(mid_x, mid_y, label, color=color, fontsize=7, ha="center", va="center", bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.2}, zorder=9)
 
 
 def draw_box(ax, xy: tuple[float, float], width: float, height: float, text: str, color: str) -> None:
@@ -180,8 +181,8 @@ def plot_layered_opinion_decision(output_dir: Path) -> None:
 
     rear_center = ((target_x[0] + CAR_DRAW_LENGTH / 2.0 + target_x[1] - CAR_DRAW_LENGTH / 2.0) / 2.0, TARGET_LANE_Y - 0.6)
     front_center = ((target_x[1] + CAR_DRAW_LENGTH / 2.0 + target_x[2] - CAR_DRAW_LENGTH / 2.0) / 2.0, TARGET_LANE_Y - 0.6)
-    draw_arrow(ax_scene, (ego_x - 0.55, EGO_LANE_Y + 0.7), rear_center, VERMILLION, r"$c_r,z_r$")
-    draw_arrow(ax_scene, (ego_x + 0.55, EGO_LANE_Y + 0.7), front_center, BLUE, r"$c_f,z_f$")
+    draw_arrow(ax_scene, (ego_x - 0.55, EGO_LANE_Y + 0.7), rear_center, VERMILLION, "")
+    draw_arrow(ax_scene, (ego_x + 0.55, EGO_LANE_Y + 0.7), front_center, BLUE, "")
     ax_scene.set_title("Candidate gaps observed by ego vehicle")
 
     # 右侧展示高层与底层意见动力学的逻辑。
@@ -189,7 +190,7 @@ def plot_layered_opinion_decision(output_dir: Path) -> None:
     ax_flow.set_xlim(0, 1)
     ax_flow.set_ylim(0, 1)
     draw_box(ax_flow, (0.08, 0.78), 0.84, 0.14, "Relative state\n(position, velocity)", BLUE)
-    draw_box(ax_flow, (0.08, 0.58), 0.84, 0.14, r"High-level opinions\n$c_f,c_r,\ b_h=c_f-c_r$", PURPLE)
+    draw_box(ax_flow, (0.08, 0.58), 0.84, 0.14, "High-level opinion\nfront vs. rear gap bias", PURPLE)
     draw_box(ax_flow, (0.08, 0.38), 0.84, 0.14, r"Decision state\n$\dot y=-d_hy+u_h\tanh(\alpha_h y)+b_h$", PURPLE)
     draw_box(ax_flow, (0.08, 0.18), 0.84, 0.14, "Selected target gap\nFRONT / REAR / WAIT", GREEN)
     draw_box(ax_flow, (0.08, 0.00), 0.84, 0.12, r"Low-level control\n$u(t)\rightarrow \dot z \rightarrow p_d$", VERMILLION)
@@ -249,15 +250,6 @@ def plot_multi_gap_environment(output_dir: Path) -> None:
         draw_car(ax, x, TARGET_LANE_Y, f"V{index + 1}", colors[index % len(colors)])
 
     draw_car(ax, MULTI_EGO_X_BASE, EGO_LANE_Y, "Ego", "#B7E4A8", alpha=0.95)
-    ax.annotate(
-        "5 target vehicles, 4 candidate gaps\nbase spacing = 8 m, variable desired gaps",
-        xy=(sorted_x[2], TARGET_LANE_Y + 1.15),
-        xytext=(sorted_x[2], TARGET_LANE_Y + 2.1),
-        ha="center",
-        va="bottom",
-        fontsize=8,
-        arrowprops={"arrowstyle": "-|>", "color": BLACK, "linewidth": 0.8},
-    )
     ax.set_title("Multi-gap experimental environment")
 
     output_dir.mkdir(parents=True, exist_ok=True)

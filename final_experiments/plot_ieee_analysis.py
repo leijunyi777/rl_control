@@ -23,6 +23,7 @@ from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -121,7 +122,14 @@ def draw_panel_label(ax, label: str) -> None:
     ax.text(-0.12, 1.05, label, transform=ax.transAxes, fontsize=10, fontweight="bold", va="bottom")
 
 
-def draw_mean_ci(ax, x: float, values: list[float], color: str, label: str | None = None) -> None:
+def draw_mean_ci(
+    ax,
+    x: float,
+    values: list[float],
+    color: str,
+    label: str | None = None,
+    ci_color: str = BLACK,
+) -> None:
     """叠加均值和 95% CI。"""
     mean, ci = mean_ci95(values)
     ax.errorbar(
@@ -129,8 +137,9 @@ def draw_mean_ci(ax, x: float, values: list[float], color: str, label: str | Non
         [mean],
         yerr=[ci],
         fmt="D",
-        color=color,
+        color=ci_color,
         markerfacecolor="white",
+        markeredgecolor=ci_color,
         markeredgewidth=1.2,
         markersize=5.2,
         elinewidth=1.8,
@@ -139,6 +148,18 @@ def draw_mean_ci(ax, x: float, values: list[float], color: str, label: str | Non
         label=label,
         zorder=6,
     )
+
+
+def reward_piecewise_forward(values):
+    """Map reward so 100 is centered: [-1000, 100] and [100, 400] each occupy half height."""
+    arr = np.asarray(values, dtype=float)
+    return np.where(arr <= 100.0, 0.5 * (arr + 1000.0) / 1100.0, 0.5 + 0.5 * (arr - 100.0) / 300.0)
+
+
+def reward_piecewise_inverse(values):
+    """Inverse transform for the centered reward axis."""
+    arr = np.asarray(values, dtype=float)
+    return np.where(arr <= 0.5, arr / 0.5 * 1100.0 - 1000.0, (arr - 0.5) / 0.5 * 300.0 + 100.0)
 
 
 def plot_training(ax, rows: list[dict[str, str]]) -> None:
@@ -163,8 +184,8 @@ def plot_single_compare(ax, rows: list[dict[str, str]]) -> None:
         ax.plot([0, 1], [left, right], color=LIGHT_GRAY, linewidth=0.7, zorder=1)
     ax.scatter([0] * len(rbf), rbf, color=VERMILLION, marker="s", s=14, alpha=0.55, label="RBF raw runs", zorder=3)
     ax.scatter([1] * len(sac), sac, color=BLUE, marker="o", s=14, alpha=0.55, label="SAC raw runs", zorder=3)
-    draw_mean_ci(ax, 0, rbf, VERMILLION, "Mean +/- 95% CI")
-    draw_mean_ci(ax, 1, sac, BLUE, None)
+    draw_mean_ci(ax, 0, rbf, VERMILLION, "Mean +/- 95% CI", ci_color=BLACK)
+    draw_mean_ci(ax, 1, sac, BLUE, None, ci_color=BLACK)
     ax.set_xticks([0, 1])
     ax.set_xticklabels(["RBF ref.", "SAC policy"])
     ax.set_ylabel("Reward")
@@ -192,20 +213,22 @@ def plot_multi_generalization(ax, rows: list[dict[str, str]]) -> None:
         label="95% CI",
     )
     ax.set_xlabel("Run")
-    ax.set_ylabel("Reward (symlog scale)")
+    ax.set_ylabel("Reward (piecewise linear scale)")
     ax.set_title("Multi-gap transfer evaluation")
-    ax.set_yscale("symlog", linthresh=100.0, linscale=0.8)
-    ax.set_yticks([-1000, -500, -100, 0, 100, 200, 300])
-    ax.set_yticklabels(["-1000", "-500", "-100", "0", "100", "200", "300"])
+    ax.set_yscale("function", functions=(reward_piecewise_forward, reward_piecewise_inverse))
+    ax.set_ylim(-1000, 400)
+    ax.set_yticks([-1000, -500, 0, 100, 200, 300, 400])
+    ax.set_yticklabels(["-1000", "-500", "0", "100", "200", "300", "400"])
+    ax.axhline(100.0, color=GRAY, linewidth=0.8, linestyle=":")
     ax.grid(True, color="#E6E6E6", linewidth=0.5)
-    ax.legend(frameon=False, loc="lower right")
+    ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, -0.24), ncol=3, borderaxespad=0.0)
     success_rate = 100.0 * statistics.fmean(finite(success))
     ax.text(
-        0.98,
-        1.03,
+        1.0,
+        -0.24,
         f"Success: {success_rate:.1f}%",
         transform=ax.transAxes,
-        va="bottom",
+        va="top",
         ha="right",
         fontsize=7,
         clip_on=False,
@@ -220,8 +243,8 @@ def plot_multi_ablation(ax, rows: list[dict[str, str]]) -> None:
         ax.plot([0, 1], [left, right], color=LIGHT_GRAY, linewidth=0.7, zorder=1)
     ax.scatter([0] * len(max_method), max_method, color=VERMILLION, marker="s", s=14, alpha=0.55, label="max raw runs", zorder=3)
     ax.scatter([1] * len(opinion), opinion, color=GREEN, marker="^", s=16, alpha=0.55, label="opinion raw runs", zorder=3)
-    draw_mean_ci(ax, 0, max_method, VERMILLION, "Mean +/- 95% CI")
-    draw_mean_ci(ax, 1, opinion, GREEN, None)
+    draw_mean_ci(ax, 0, max_method, VERMILLION, "Mean +/- 95% CI", ci_color=BLACK)
+    draw_mean_ci(ax, 1, opinion, GREEN, None, ci_color=BLACK)
     ax.set_xticks([0, 1])
     ax.set_xticklabels(["max baseline", "opinion module"])
     ax.set_ylabel("Reward")
