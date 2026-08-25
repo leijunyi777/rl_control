@@ -116,6 +116,8 @@ def rolling_mean(values: list[float], window: int) -> tuple[list[int], list[floa
 
 
 def draw_panel_label(ax, label: str) -> None:
+    """保留接口但不绘制子图字母。"""
+    return
     ax.text(-0.12, 1.05, label, transform=ax.transAxes, fontsize=10, fontweight="bold", va="bottom")
 
 
@@ -130,9 +132,12 @@ def draw_mean_ci(ax, x: float, values: list[float], color: str, label: str | Non
         color=color,
         markerfacecolor="white",
         markeredgewidth=1.2,
+        markersize=5.2,
+        elinewidth=1.8,
         capsize=3,
+        capthick=1.6,
         label=label,
-        zorder=5,
+        zorder=6,
     )
 
 
@@ -156,8 +161,8 @@ def plot_single_compare(ax, rows: list[dict[str, str]]) -> None:
     rbf = as_float(rows, "rbf_reward")
     for left, right in zip(rbf, sac):
         ax.plot([0, 1], [left, right], color=LIGHT_GRAY, linewidth=0.7, zorder=1)
-    ax.scatter([0] * len(rbf), rbf, color=VERMILLION, marker="s", s=16, alpha=0.75, label="RBF raw runs", zorder=3)
-    ax.scatter([1] * len(sac), sac, color=BLUE, marker="o", s=16, alpha=0.75, label="SAC raw runs", zorder=3)
+    ax.scatter([0] * len(rbf), rbf, color=VERMILLION, marker="s", s=14, alpha=0.55, label="RBF raw runs", zorder=3)
+    ax.scatter([1] * len(sac), sac, color=BLUE, marker="o", s=14, alpha=0.55, label="SAC raw runs", zorder=3)
     draw_mean_ci(ax, 0, rbf, VERMILLION, "Mean +/- 95% CI")
     draw_mean_ci(ax, 1, sac, BLUE, None)
     ax.set_xticks([0, 1])
@@ -176,10 +181,22 @@ def plot_multi_generalization(ax, rows: list[dict[str, str]]) -> None:
     mean_reward, ci_reward = mean_ci95(rewards)
     ax.scatter(runs, rewards, color=BLUE, marker="o", s=16, alpha=0.75, label="Raw runs")
     ax.axhline(mean_reward, color=BLACK, linewidth=1.1, linestyle="--", label="Mean reward")
-    ax.fill_between([min(runs), max(runs)], mean_reward - ci_reward, mean_reward + ci_reward, color=BLUE, alpha=0.12, label="95% CI")
+    ax.fill_between(
+        [min(runs), max(runs)],
+        mean_reward - ci_reward,
+        mean_reward + ci_reward,
+        facecolor=BLUE,
+        edgecolor=BLUE,
+        linewidth=0.8,
+        alpha=0.24,
+        label="95% CI",
+    )
     ax.set_xlabel("Run")
-    ax.set_ylabel("Reward")
+    ax.set_ylabel("Reward (symlog scale)")
     ax.set_title("Multi-gap transfer evaluation")
+    ax.set_yscale("symlog", linthresh=100.0, linscale=0.8)
+    ax.set_yticks([-1000, -500, -100, 0, 100, 200, 300])
+    ax.set_yticklabels(["-1000", "-500", "-100", "0", "100", "200", "300"])
     ax.grid(True, color="#E6E6E6", linewidth=0.5)
     ax.legend(frameon=False, loc="lower right")
     success_rate = 100.0 * statistics.fmean(finite(success))
@@ -201,8 +218,8 @@ def plot_multi_ablation(ax, rows: list[dict[str, str]]) -> None:
     max_method = as_float(rows, "max_reward")
     for left, right in zip(max_method, opinion):
         ax.plot([0, 1], [left, right], color=LIGHT_GRAY, linewidth=0.7, zorder=1)
-    ax.scatter([0] * len(max_method), max_method, color=VERMILLION, marker="s", s=16, alpha=0.72, label="max raw runs", zorder=3)
-    ax.scatter([1] * len(opinion), opinion, color=GREEN, marker="^", s=18, alpha=0.72, label="opinion raw runs", zorder=3)
+    ax.scatter([0] * len(max_method), max_method, color=VERMILLION, marker="s", s=14, alpha=0.55, label="max raw runs", zorder=3)
+    ax.scatter([1] * len(opinion), opinion, color=GREEN, marker="^", s=16, alpha=0.55, label="opinion raw runs", zorder=3)
     draw_mean_ci(ax, 0, max_method, VERMILLION, "Mean +/- 95% CI")
     draw_mean_ci(ax, 1, opinion, GREEN, None)
     ax.set_xticks([0, 1])
