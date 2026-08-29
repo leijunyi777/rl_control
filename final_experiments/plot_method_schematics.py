@@ -172,8 +172,8 @@ def plot_layered_opinion_decision(output_dir: Path) -> None:
     target_x = [20.0, 32.0, 44.0]
     ego_x = 32.0
     draw_road(ax_scene, 12.0, 52.0)
-    draw_gap_span(ax_scene, target_x[0], target_x[1], TARGET_LANE_Y, r"rear gap $G_r$", VERMILLION)
-    draw_gap_span(ax_scene, target_x[1], target_x[2], TARGET_LANE_Y, r"front gap $G_f$", BLUE)
+    draw_gap_span(ax_scene, target_x[0], target_x[1], TARGET_LANE_Y, r"rear gap $C_r$", VERMILLION)
+    draw_gap_span(ax_scene, target_x[1], target_x[2], TARGET_LANE_Y, r"front gap $C_f$", BLUE)
     draw_car(ax_scene, target_x[0], TARGET_LANE_Y, "V1", "#88CCEE")
     draw_car(ax_scene, target_x[1], TARGET_LANE_Y, "V2", "#44AA99")
     draw_car(ax_scene, target_x[2], TARGET_LANE_Y, "V3", "#88CCEE")
