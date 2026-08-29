@@ -1,0 +1,12 @@
+2方法
+2.1 高层决策/High-level decision-makingl   
+2.1.1意见动力学及自我更新/Opinion Dynamics and Self-Update
+2.1.2纵向偏置设计/Longitudinal direction bias design
+2.1.3纵向意见与决策/Longitudinal opinions and decisions
+2.1.4横向偏置设计/Lateral direction bias design
+2.1.5横向注意力及sac设置/Lateral attention and SAC design
+2.1.6横向意见与决策/Lateral opinions and decisions
+2.2 底层控制设计/Low-level control design
+2.2.1安全规避条款/Safety-Avoidance Term
+2.2.2目标点与跟踪误差/Target Point and Tracking Error
+2.2.3 最终物理输入设计/Final Physical Input Design
