@@ -77,9 +77,9 @@
 \uomtoc
 
 \begin{abstract}
-Lane changing is a fundamental problem in autonomous driving. This dissertation proposes a two-layer decision-making and control framework for autonomous vehicles to merge into the target lane. The proposed method decomposes the lane changing problem into two coupled but functionally distinct layers: the upper-level module determines which local gap is preferable, while the lower-level module converts the selected gap into continuous target points and actual vehicle control inputs. The upper-level module uses only the three target-lane vehicles closest to the ego vehicle, forms two candidate gaps with these three vehicles, evaluates the relative feasibility of the two gaps through a smooth confidence function, and updates the upper-level opinion state using the opinion dynamics equation with reinforcement terms. The lower-level module further calculates the objective bias based on the size and rate of change of the selected gap, uses a SAC policy to determine the attention intensity, updates the lower-level opinion state, and maps this opinion to the target control points within the gap. Finally, the front-axle tracking controller generates vehicle acceleration and angular velocity changes.
+Lane changing is a fundamental problem in autonomous driving. This dissertation proposes a two-layer decision-making and control framework for autonomous vehicles merging into a target lane. The framework separates strategic decision dynamics from physical execution. The high-level decision-making layer contains two opinion variables: a longitudinal opinion that selects a local gap from nearby target-lane vehicles, and a lateral opinion that determines whether the ego vehicle should commit to the selected gap. The longitudinal module observes the three target-lane vehicles closest to the ego vehicle, forms two candidate gaps, evaluates their relative confidence, and accumulates a temporally smoothed preference through nonlinear opinion dynamics. The lateral module evaluates the selected gap using its size and rate of change, uses a Soft Actor-Critic (SAC) policy to generate the attention intensity, and maps the resulting opinion to continuous target points. The low-level controller then combines safety avoidance, target tracking, and a proportional-integral-derivative (PID)-like physical input law to generate acceleration and steering-rate commands.
 
-Simulation experiments are implemented in Python to evaluate the proposed control method. The experimental results show that in a single-gap environment, the reinforcement learning method of SAC learns an effective strategy and maintains convergence, and the vehicle can successfully complete the task; in a multi-gap environment, the policy learned in the simple environment transfers to the more complex setting, and the effectiveness of the two-layer decision-making system is verified.
+Simulation experiments are implemented in Python in two environments. The single-gap environment contains one front vehicle, one rear vehicle, and one merging ego vehicle with a randomized initial longitudinal position; the rear vehicle creates a yielding opportunity after 20 s. The multi-gap environment contains five target-lane vehicles and four dynamically changing gaps over a 40 s horizon. In the single-gap tests, the SAC attention policy achieves an average episodic reward of 233.4 compared with 115.8 for the radial-basis-function (RBF) baseline, completes the task in 6.9 s rather than 29.45 s, and maintains zero collisions. In multi-gap deployment, the single-gap policy maintains a success rate of approximately 97\%, and the opinion-based high-level selector improves mean reward by 55.3\% over the simple max-score selector.
 \end{abstract}
 \clearpage
 
@@ -92,75 +92,46 @@ Simulation experiments are implemented in Python to evaluate the proposed contro
 
 \section{Introduction}
 
-
-
 \subsection{Background and Motivation}
-
-
 
 \subsubsection{Decision-making strategies for merge and lane-change interaction}
 
+Lane-changing decisions are representative problems in autonomous driving. A lane change changes the available gaps, right-of-way expectations, and future responses of surrounding vehicles. Recent research has therefore treated lane changing as an interactive decision problem rather than a purely geometric path-planning task. Game-theoretic models are widely used because they explicitly describe the strategic relationship between the ego vehicle and surrounding vehicles. Lane-changing intention, collision probability, and dynamic risk can be incorporated into a payoff function to evaluate whether a manoeuvre is beneficial or dangerous \cite{R1,R2}. Physics-inspired methods, such as molecular interaction potential models, further express attraction and repulsion between vehicles as continuous interaction forces \cite{R3}. Other studies consider incomplete information and social driving preferences, because surrounding human-driven vehicles may behave cooperatively, aggressively, or uncertainly in merging conflicts \cite{R4}.
 
-
-
-
-Lane-changing decisions are representative problems in autonomous driving. A lane change alters the available gaps, road right-of-way expectations, and future responses of surrounding vehicles. Recent research has therefore increasingly treated lane changing as an interactive perception decision task. Game theory models are widely used because they can explicitly describe the strategic relationship between the ego vehicle and surrounding vehicles. Lane changing intentions, collision probabilities, and dynamic risks can be incorporated into the payoff function to determine whether a maneuver is beneficial or dangerous \cite{R1,R2}. Physics-inspired models such as molecular interaction potentials further express the attraction and repulsion between vehicles as continuous interaction forces \cite{R3}. Recent studies also consider incomplete information and social driving preferences, as in lane changing conflicts involving human-driven vehicles, surrounding vehicles may exhibit cooperative, aggressive, or uncertain behaviors \cite{R4}.
-
-
-
-Another important direction is learning-based interactive prediction. Graph neural networks and attention mechanisms represent vehicles as nodes and the influence between vehicles as edges or attention weights. This is highly suitable for lane changing scenarios, as the number and importance of surrounding vehicles will dynamically change. Existing research uses topological graphs combined with driving behavior and traffic context to predict the lane changing intentions of drivers \cite{R5}, and some studies use plan-aware graph attention networks to predict the responses of surrounding vehicles to the candidate intentions of the ego vehicle, and then the model predicts the control trajectory \cite{R6}. These methods illustrate that interaction modeling should not only predict where other vehicles will go, but also estimate how they will respond to the ego vehicle's decision. Cooperative control methods provide a third route. In connected autonomous driving environments, surrounding vehicles can actively create gaps, coordinate lane changing sequences, or maintain fleet stability \cite{R7,R8}. Overall, recent literature provides motivation for the hierarchical framework: this framework requires the combination of strategy interaction modeling, behavior prediction, and safe execution.
-
-
+Learning-based interactive prediction provides a second route. Graph neural networks and attention mechanisms represent vehicles as nodes and inter-vehicle influence as edges or attention weights. This representation is suitable for lane changing, where the number and importance of surrounding vehicles vary over time. Existing studies use topological graphs with driving behaviour and traffic context to predict lane-changing intentions \cite{R5}, while plan-aware graph attention models predict how surrounding vehicles respond to candidate ego intentions before generating a trajectory \cite{R6}. These studies show that interaction modelling should estimate not only where other vehicles will move, but also how they may respond to the ego decision. Cooperative control methods provide a third route. In connected autonomous driving, surrounding vehicles can create gaps, coordinate lane-changing order, or maintain fleet stability \cite{R7,R8}. Together, these studies motivate a hierarchical framework that combines strategic interaction modelling, adaptive decision dynamics, and safe execution.
 
 \subsubsection{Reinforcement learning for adaptive decision dynamics}
 
+Lane-changing decisions are sequential, uncertain, and feedback driven. A vehicle must decide when to wait, when to merge, and how strongly to commit. Fixed-parameter controllers may work in static cases, but they often lack flexibility when traffic states change or when the system must move between cautious waiting and active merging. Deep reinforcement learning (DRL) provides a mechanism for learning decision strategies through repeated interaction. Existing studies have integrated safety rules, future-risk assessment, reward shaping, and robust observation modelling into DRL lane-changing strategies \cite{R9,R10,R11}. These studies suggest that reinforcement learning (RL) should not be used as an unconstrained black box; instead, it should be constrained by interpretable states, safety-aware rewards, and model-based structure.
 
-
-
-
-The lane-changing decision-making process exhibits sequentiality, uncertainty, and feedback-driven characteristics. Vehicles need to determine when to wait, when to change lanes, and how to adjust their speed. Traditional fixed-parameter controllers may perform well in static scenarios, but they often lack flexibility when the traffic environment changes or when the system needs to switch between cooperative consensus and competitive divergence. Deep reinforcement learning provides a mechanism for learning decision strategies through repeated interactions. Existing studies have integrated safety rules, future risk assessment, reward shaping, and robust observation modeling into DRL lane-changing strategies \cite{R9,R10,R11}. These studies show that RL should not be used as an unconstrained black box, but should be guided by interpretable state variables, safety-aware reward terms, and robust mechanisms.
-
-
-
-Meanwhile, MARL allows each connected or autonomous vehicle to learn from the behavior of neighboring vehicles while considering system-level outcomes such as traffic efficiency, comfort, and safety \cite{R12}. Right-of-way coordination and Mix Q-learning further illustrate that the lane-changing task can balance individual benefits with group benefits \cite{R13,R14}. For this dissertation, these studies support a key idea: RL is not just a direct output of lane-changing actions, but can dynamically adjust the control parameters of the nonlinear decision dynamics model. This enables adaptive changes according to environmental stimuli while still maintaining connection with low-level safety control.
-
-
+Multi-agent reinforcement learning (MARL) further allows connected or autonomous vehicles to learn from neighbouring vehicles while considering system-level outcomes such as traffic efficiency, comfort, and safety \cite{R12}. Right-of-way coordination and Mix Q-learning show that lane changing can balance individual and group benefits \cite{R13,R14}. For this dissertation, these studies support a specific use of RL: the learned policy does not directly output lane-changing motion, but adjusts the attention parameter inside a nonlinear opinion-dynamics model. The decision remains interpretable, while the timing and strength of commitment can adapt to the environment.
 
 \subsubsection{Evaluation dimensions: from efficiency to safety, comfort, and adaptability}
 
-
-
-
-
-The evaluation of lane-changing decisions has shifted from a single efficiency metric to a multi-dimensional assessment. Average speed, travel time, traffic volume, and lane-changing success rate remain important, but they are not sufficient to support safety-critical autonomous driving systems. A rapid lane change can still be unsafe, uncomfortable, or disrupt the traffic flow. Therefore, recent research has begun to evaluate collision risk, minimum distance, braking feasibility, safety violation rate, acceleration, deceleration, traffic flow stability, and robustness under perception uncertainty \cite{R7,R8,R10,R15}. This project adopts these evaluation perspectives, which emphasize convergence speed, safety violation rate, and task efficiency while also evaluating safety, comfort, and stability.
-
-
-
-
+The evaluation of lane-changing decisions has shifted from single efficiency metrics to multidimensional assessment. Average speed, travel time, traffic volume, and lane-changing success rate remain important, but they are insufficient for safety-critical autonomous driving. A rapid lane change may still be unsafe, uncomfortable, or disruptive to traffic flow. Recent studies therefore evaluate collision risk, minimum distance, braking feasibility, safety violation rate, acceleration, traffic-flow stability, and robustness under perception uncertainty \cite{R7,R8,R10,R15}. This project follows these evaluation dimensions by measuring task progress, completion time, collision behaviour, minimum distance, reward, and switching stability.
 
 \subsection{Aims and Objectives}
 
+The aim of this project is to develop, integrate, and evaluate a two-layer decision-making and control framework for interactive autonomous lane merging. The framework uses nonlinear opinion dynamics to represent strategic commitment, RL to adapt the lateral attention intensity, and a safety-aware low-level controller to convert opinion states into physical vehicle inputs.
 
+This project has five objectives. First, it formulates a continuous opinion-dynamics model for longitudinal gap selection and lateral merging commitment. Second, it trains a SAC agent to adjust the lateral attention parameter of the opinion model. Third, it designs a low-level execution controller that combines safety avoidance with front-axle target tracking. Fourth, it implements the complete controller in a Python simulation framework. Fifth, it compares the proposed method with RBF and max-score baselines to evaluate efficiency, safety, and generalization.
 
+\subsection{Scenario and Modeling}
 
+The studied scenario is a lane-merging task in which one ego vehicle travels in the original lane and attempts to merge into a target lane containing continuous traffic. The target-lane vehicles are assumed to be observable through their longitudinal positions and velocities. The ego vehicle does not control these vehicles; instead, it observes their motion, selects a feasible local gap, and generates its own control input. In the single-gap environment, the target lane contains one front vehicle and one rear vehicle. In the multi-gap environment, it contains five vehicles, which form four candidate physical gaps. The ego initial longitudinal position is randomized to test whether the controller can tolerate different entry alignments.
 
-The aim of this project is to develop, integrate, and evaluate a hierarchical decision-making and control framework for interactive autonomous driving scenarios. This framework will use reinforcement learning to adjust the key parameters of the nonlinear decision dynamics/control model, enabling the agent to quickly make decisions in the simulation environment while meeting safety constraints.
+The vehicle model is represented by a front-axle kinematic bicycle abstraction. The ego state contains its planar position, heading, and forward speed, while the physical input consists of longitudinal acceleration and steering-rate commands. The front-axle point is used for decision and tracking because it gives a direct geometric reference for entering a target-lane gap. The high-level decision layer determines the desired gap and merge commitment, and the low-level controller converts the corresponding target point into actual acceleration and angular-rate changes under collision-avoidance constraints.
 
-
-
-This project has five specific objectives. First, it establishes a nonlinear opinion dynamics model at the policy layer. Second, it trains the agent using RL methods to dynamically optimize the model parameters. Third, it develops a safety perception and execution layer, using control barrier functions or equivalent constraints to convert the high-level policy into collision-free trajectories. Fourth, it implements the controller in the Python simulation framework. Fifth, it compares with the baseline and evaluate the decision-control effectiveness.
-
-
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.60\linewidth]{chapter_1_3_lane_change_scene.png}
+\caption{Lane-Merging Scenario Illustration}
+\label{fig:lane-merging-scenario-illustration}
+\end{figure}
 
 \section{Methods}
 
-
-
-
-
-The controller adopts a two-layer structure. The upper-layer controller completes the discrete control problem of gap selection through the evaluation of different gaps and the update of opinion dynamics; the lower-layer controller, solves the continuous control problem of actual vehicles using the actual size and change rate of the gap, as well as the attention parameters learned by reinforcement learning. 
-
-
+The proposed system contains two layers. The high-level decision-making layer includes both longitudinal and lateral opinion dynamics. The longitudinal opinion \(y(t)\) chooses whether the ego vehicle should bias its attention toward a forward or rear candidate gap, and the lateral opinion \(z(t)\) determines how strongly the ego vehicle should move from the original lane toward the selected gap. The low-level control layer does not make a new strategic decision; it converts the target implied by the high-level opinions into safety-aware physical inputs.
 
 \begin{figure}[!htbp]
 \centering
@@ -169,490 +140,179 @@ The controller adopts a two-layer structure. The upper-layer controller complete
 \label{fig:system-block-diagram}
 \end{figure}
 
+\subsection{High-Level Decision-Making}
 
+\subsubsection{Opinion Dynamics and Self-Update}
 
-
-
-\subsection{High-Level Control System}
-
-\subsubsection{Opinion Dynamics and Self-Updating Attention}
+The same continuous opinion-dynamics template \cite{R16} is used for both high-level opinions. Let \(o(t)\in\mathbb{R}\) be a scalar opinion, \(u(t)\geq 0\) be its scalar attention intensity, \(b(t)\in\mathbb{R}\) be an external environmental bias, \(d>0\) be a damping coefficient, and \(\alpha>0\) be a sensitivity coefficient. The opinion evolves as
 
 {\small
 \begin{equation}
-\dot{o}(t) =
--d\,o(t)
-+u(t)\tanh\!\left(\alpha o(t)\right)
-+b(t).
+\dot{o}(t)=-d\,o(t)+u(t)\tanh\!\left(\alpha o(t)\right)+b(t).
 \end{equation}
 }
 
-
-The same opinion-dynamics template \cite{R16} is used at both levels. As shown in the following formula, for the general opinion variable \(o(t)\), its dynamics are defined below, where the damping coefficient \(d > 0\) pulls the opinion back to the neutral position; the attention intensity \(u(t) \geq 0\) determines the degree to which the existing opinion is self-reinforced; the sensitivity parameter \(\alpha > 0\) determines the speed at which the nonlinear term enters the saturation zone; the external bias \(b(t)\) injects the environmental evaluation into the system. If \(b(t)\) is close to zero, the damping term will cause the opinion to decay; if there is a small but persistent bias, the self-reinforcement term will gradually amplify the opinion until a stable decision is formed.
-
-
-The \(y(t)\) represents the decision-making opinion regarding lane selection. In lane selection, the external environment bias is determined by the gap confidence, while attention \(u_h(t)\) is updated by the following self-updating law. This Hill-type function depends on \(y^2\), so the sign of the opinion is treated symmetrically. When \(y(t)\) approaches zero, attention decays and the vehicle remains cautious; when \(|y(t)|\) increases, \(S_h\) rises, thereby increasing \(u_h(t)\), and a larger \(u_h(t)\) further strengthens the self-reinforcing term in the opinion equation. This feedback loop enables small but continuous preferences to gradually transform into stable gap selection.
+The damping term pulls the opinion toward neutrality, the hyperbolic-tangent term provides bounded self-reinforcement, and the bias term injects environmental evidence. A weak but persistent bias can therefore be amplified into a stable decision, while an unsupported opinion decays. For the longitudinal opinion, the scalar attention \(u_h(t)\) is updated by a Hill-type self-update law,
 
 {\small
 \begin{equation}
-\begin{aligned}
-\dot{u}_h(t) &= \frac{-u_h(t)+S_h(y(t)^2)}{\tau_h},\\
-S_h(y^2) &= U_{\max}\frac{(y^2)^n}{K_h^n+(y^2)^n}.
-\end{aligned}
+\dot{u}_h(t)=\frac{-u_h(t)+S_h(y(t)^2)}{\tau_h},\quad
+S_h(y^2)=U_{\max}\frac{(y^2)^n}{K_h^n+(y^2)^n}.
 \end{equation}
 }
 
+Here, \(\tau_h\) is the attention time constant, \(U_{\max}\) is the upper attention bound, \(K_h\) is the activation threshold, and \(n\) controls the steepness. Because \(S_h\) depends on \(y^2\), positive and negative directional opinions are reinforced symmetrically.
 
+\subsubsection{Longitudinal Direction Bias Design}
 
-
-
-\subsubsection{Lane Selection Bias from Gap Confidence}
-
-
-
-At each time step, the high-level module selects the three target-lane vehicles closest to the ego front axle in the longitudinal coordinate. Let these vehicles be ordered from front to rear as \((i_1,i_2,i_3)\). The forward candidate gap is the space between \(i_1\) and \(i_2\), and the rear candidate gap is the space between \(i_2\) and \(i_3\). For any candidate gap formed by a front vehicle \(F\) and a rear vehicle \(R\), the gap center and gap velocity are
-
-
+At each time step, the high-level module selects the three target-lane vehicles closest to the ego front axle in the longitudinal coordinate. Let their scalar longitudinal positions be ordered from front to rear as \(x_{i_1}>x_{i_2}>x_{i_3}\). The forward candidate gap is formed by \((i_1,i_2)\), and the rear candidate gap is formed by \((i_2,i_3)\). For a candidate gap \(g\) with front vehicle \(F\) and rear vehicle \(R\), the scalar gap centre \(x_g(t)\) and scalar gap velocity \(v_g(t)\) are
 
 {\small
 \begin{equation}
-\begin{aligned}
-x_g(t)&=\frac{p_F^x(t)+p_R^x(t)}{2},&
-v_g(t)&=\frac{v_F^x(t)+v_R^x(t)}{2}.
-\end{aligned}
+x_g(t)=\frac{x_F(t)+x_R(t)}{2},\qquad
+v_g(t)=\frac{v_F(t)+v_R(t)}{2}.
 \end{equation}
 }
 
-
-
-
-
-
-
-The ego-to-gap alignment is defined by the longitudinal position error \(d_g(t)=x_g(t)-p_e^x(t)\) and the relative speed error \(\Delta v_g(t)=v_g(t)-v_e^x(t)\).
-
-
-
-
-
-
-
-The confidence of a gap is then evaluated using a Gaussian radial-basis function:
-
-
+Let \(x_e(t)\) and \(v_e(t)\) denote the ego front-axle longitudinal position and speed. The longitudinal alignment error is \(d_g(t)=x_g(t)-x_e(t)\), and the relative speed error is \(\Delta v_g(t)=v_g(t)-v_e(t)\). The confidence of candidate gap \(g\) is evaluated by a radial-basis function,
 
 {\small
 \begin{equation}
-C_g(t) =
-\exp
-\left(
+C_g(t)=
+\exp\!\left(
 -\frac{d_g(t)^2}{2\sigma_d^2}
 -\frac{\Delta v_g(t)^2}{2\sigma_v^2}
-\right).
+\right),
 \end{equation}
 }
 
+where \(\sigma_d\) and \(\sigma_v\) define the position and velocity bandwidths. If \(C_f(t)\) and \(C_r(t)\) are the confidences of the forward and rear candidate gaps, the longitudinal bias is \(B_y(t)=C_f(t)-C_r(t)\). This difference retains both direction and magnitude: \(B_y>0\) favours the forward gap, \(B_y<0\) favours the rear gap, and \(B_y\approx0\) indicates ambiguous evidence. Even a small confidence difference can become decisive when it persists, because the opinion dynamics amplifies temporally consistent evidence.
 
+\subsubsection{Longitudinal Opinions and Decisions}
 
-
-
-When the gap center is close to the ego vehicle and the relative speed is low, the confidence level is higher; when the gap is spatially far apart or the speed matching is poor, the confidence level smoothly decreases. The forward and rear confidences are converted into a signed directional bias \(B(t)=C_f(t)-C_r(t)\).
-
-
-
-
-
-The difference is used because they retain both the direction and intensity of the preference. If \(B(t) > 0\), it indicates that the front gap is more consistent with the current ego state; if \(B(t) < 0\), it indicates that the rear gap is more in line; if \(B(t) \approx 0\), it means the evidence is still ambiguous. Even if the absolute values of the two confidence levels are both small, the difference between them can still represent a weak but meaningful relative preference. Through the opinion dynamics equation, this weak preference will only accumulate and gradually become clearer when it persists. This keeps the comparison process smooth and makes the decision changes more stable.
-
-
-
-\subsubsection{High-Level Opinion Update and Decision Mapping}
-
-
-
-
-
-The high-level opinion \(y(t)\) stores the accumulated directional belief. After computing \(B(t)\) and updating \(u_h(t)\), the system integrates the high-level opinion using an explicit time step \(\Delta t\), and updates the attention:
-
-
+The longitudinal opinion \(y(t)\in\mathbb{R}\) accumulates the directional preference between the two candidate gaps. With the bias \(B_y(t)\) and attention \(u_h(t)\), its continuous dynamics are
 
 {\small
 \begin{equation}
-\begin{aligned}
-y_{k+1} &= y_k +\Delta t\left[-d_y y_k+u_{h,k}\tanh(\alpha_y y_k)+B_k\right],\\
-u_{h,k+1} &= u_{h,k}+\Delta t\frac{-u_{h,k}+S_h(y_k^2)}{\tau_h}.
-\end{aligned}
+\dot{y}(t)=-d_y y(t)+u_h(t)\tanh\!\left(\alpha_y y(t)\right)+B_y(t),
 \end{equation}
 }
 
-
-
-
-
-
-
-The high-level decision mapping is threshold-based: the system selects the forward gap when \(y_k>\theta_y\), the rear gap when \(y_k<-\theta_y\), and waits when \(|y_k|\leq\theta_y\).
-
-
-
-
-
-The waiting interval prevents frequent changes in the selected gap when \(C_f\) and \(C_r\) are close, allowing vehicles to leave the neutral zone and make a choice only after sufficient evidence has accumulated. Therefore, this mechanism is smoother than the direct instantaneous comparison. Even if the group selection of the vehicle closest to the ego vehicle changes, the decision will not suddenly change due to a jump in confidence, which is more consistent with the actual driving behavior logic.
-
-
+where \(d_y\) and \(\alpha_y\) are the longitudinal damping and sensitivity coefficients. The selected gap is determined by a waiting band: the forward gap is selected when \(y(t)>\theta_y\), the rear gap is selected when \(y(t)<-\theta_y\), and no switch is made when \(|y(t)|\leq\theta_y\). This continuous formulation avoids an instantaneous max comparison and reduces frequent changes when the two candidate gaps have similar confidence.
 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.60\linewidth]{layered_opinion_decision_schematic.png}
-\caption{layered opinion decision schematic}
+\caption{Layered opinion decision schematic}
 \label{fig:layered-opinion-decision-schematic}
 \end{figure}
 
+\subsubsection{Lateral Direction Bias Design}
 
+After the longitudinal decision chooses a target gap, the lateral opinion evaluates whether the ego vehicle should actively move toward it. For the selected front and rear vehicles, the scalar physical gap length is \(G(t)=x_F(t)-x_R(t)\), and the gap opening rate is \(\dot{G}(t)=v_F(t)-v_R(t)\). The lateral environmental bias is
 
+{\small
+\begin{equation}
+B_z(t)=k_g\left[G(t)-G_{\mathrm{safe}}\right]+k_v\dot{G}(t),
+\end{equation}
+}
 
+where \(G_{\mathrm{safe}}\) is the required safe gap, \(k_g\) weights the spatial margin, and \(k_v\) weights the rate of gap expansion. A large and opening gap increases \(B_z\), whereas a small or closing gap delays lateral commitment.
 
-\subsection{Low-Level Control System}
+\subsubsection{Lateral Attention and SAC Design}
 
+The lateral attention \(u_z(t)\) controls how strongly the lateral opinion self-reinforces. It is difficult to tune this attention manually because the system contains nonlinear opinion dynamics, moving traffic, collision penalties, and input limits. The Soft Actor-Critic (SAC) policy therefore outputs \(u_z(t)\) directly, while the model-based controller still determines the vehicle motion. Let \(s_t\) be the state, \(a_t\) be the action, \(\rho_\pi\) be the state-action distribution induced by policy \(\pi_\phi(a|s)\), \(r(s_t,a_t)\) be the immediate reward, \(\alpha_{\mathrm{SAC}}\) be the entropy temperature, and \(\mathcal{H}\) be policy entropy. SAC optimizes the policy by balancing return and entropy,
 
+{\small
+\begin{equation}
+J(\pi)=\sum_t \mathbb{E}_{(s_t,a_t)\sim\rho_\pi}
+\left[r(s_t,a_t)+\alpha_{\mathrm{SAC}}\mathcal{H}\!\left(\pi(\cdot|s_t)\right)\right].
+\end{equation}
+}
 
+The state \(s_t\in\mathbb{R}^8\) contains the relative longitudinal and lateral positions and velocities between the ego vehicle and the front/rear vehicles of the selected gap. The action is the scalar attention command \(a_t=u_z(t)\), clipped to a fixed range:
 
+{\small
+\begin{equation}
+s_t=[\Delta x_F,\Delta y_F,\Delta v_{x,F},\Delta v_{y,F},
+\Delta x_R,\Delta y_R,\Delta v_{x,R},\Delta v_{y,R}],\qquad
+a_t=u_z(t).
+\end{equation}
+}
 
-After the high-level module selects a candidate gap, the low-level module decides how the ego vehicle should enter that gap. The low-level module first evaluates the physical feasibility of the selected gap, then determines the attention intensity, updates the low-level opinion \(z(t)\), and finally converts \(z(t)\) into continuous target points. This design makes the merging action gradual: as the low-level opinion strengthens, the target points gradually move from the original lane reference position to within the selected gap.
-
-
-
-\subsubsection{Low-Level Bias}
-
-
-
-
-
-For a selected gap formed by a front vehicle \(F\) and a rear vehicle \(R\), the physical gap length and  gap-rate term is
-
-
+The reward combines lane-change progress, opportunity usage, action smoothness, safety, and terminal success. The notation \(\mathbb{I}\{\cdot\}\) denotes an indicator function that equals one when its condition is true and zero otherwise:
 
 {\small
 \begin{equation}
 \begin{aligned}
-g(t)&=p_F^x(t)-p_R^x(t),\\
-\dot{g}(t)&=v_F^x(t)-v_R^x(t),\\
-b(t)&=k_g\left[g(t)-g_{\mathrm{safe}}\right]+k_v\dot{g}(t).
+r_t={}&5\Delta p_t+2O_t\max(\Delta p_t,0)-0.02(1-p_t)
+-0.5\|a_t-a_{t-1}\|^2 \\
+&-2\mathbb{I}\{v_y(t)v_y(t-\Delta t)<0\}
+-20\max\!\left(0,\frac{m_s-d_{\min}}{m_s}\right)^2 \\
+&-1000\mathbb{I}\{\mathrm{collision}\}+(100-2t)\mathbb{I}\{\mathrm{success}\}.
 \end{aligned}
 \end{equation}
 }
 
+Here, \(p_t\) is the lane-change progress, \(O_t\) indicates whether a useful merging opportunity exists, \(m_s\) is the safety margin, and \(d_{\min}\) is the minimum distance to the neighbouring vehicles. This design rewards active merging progress while penalizing collision risk, oscillatory lateral motion, and unnecessarily long execution.
 
+\subsubsection{Lateral Opinions and Decisions}
 
-
-
-
-
-The low-level bias evaluates whether the gap is sufficiently large and whether it is opening or closing:
-
-
-
-
-
-A larger gap makes \(b(t)\) more positive. An opening gap, where \(\dot{g}(t)>0\), also increases \(b(t)\). A small or closing gap decreases \(b(t)\), delaying the growth of the low-level merge intention. This formula is intentionally interpretable: \(g(t)-g_{\mathrm{safe}}\) measures spatial feasibility, while \(\dot{g}(t)\) measures whether the situation is improving or worsening.
-
-
-
-\subsubsection{The attention obtained through reinforcement learning}
-
-
-
-
-
-The low-level attention \(u(t)\) regulates the intensity of the self-reinforcement of the low-level opinions. However, the optimal timing of attention is difficult to design manually because the system simultaneously contains nonlinear opinion dynamics, moving vehicles, safety avoidance, input saturation, and delay consequences. If attention is increased too early, the ego vehicle may overcommit when the gap is not yet safe; if attention is increased too late, the vehicle may miss the merging opportunity and behave too conservatively. Therefore, reinforcement learning is used to learn the temporal sequence of attention from the reward feedback. At the same time, the learned strategy does not replace the model controller, but only outputs the attention variables in the opinion dynamics. This action space is low-dimensional and interpretable.
-
-
-
-\subsubsection{SAC Reinforcement Learning Design}
-
-
-
-
-
-Soft Actor-Critic is an off-policy actor-critic algorithm suitable for continuous action spaces. It learns the random policy \(\pi_\phi(a|s)\), two soft Q functions, and the entropy temperature parameter. Its optimization objective is to balance between the expected return and the policy entropy:
-
-The entropy term promotes exploration, which is crucial for the lane-changing task because a useful policy not only needs to learn to stay safe but also needs to learn when to actively make a lane change.
-
-
+The lateral opinion \(z(t)\in\mathbb{R}\) accumulates the commitment to move toward the selected gap. Given the learned attention \(u_z(t)\) and the lateral bias \(B_z(t)\), the opinion follows
 
 {\small
 \begin{equation}
-J(\pi) =
-\sum_{t}
-\mathbb{E}_{(s_t,a_t)\sim\rho_{\pi}}
-\left[
-r(s_t,a_t)
-+\alpha_{\mathrm{SAC}}\mathcal{H}\left(\pi(\cdot|s_t)\right)
-\right].
+\dot{z}(t)=-d_z z(t)+u_z(t)\tanh\!\left(\alpha_z z(t)\right)+B_z(t),
 \end{equation}
 }
 
+where \(d_z\) and \(\alpha_z\) are the lateral damping and sensitivity coefficients. The opinion is mapped to a merge ratio \(\lambda_z(t)=\mathrm{clip}((z(t)+1)/2,0,1)\). When \(z(t)\) is low, the desired point remains close to the original lane; as \(z(t)\) increases, the desired point moves toward the centre of the selected gap in the target lane.
 
-
-
-
-The low-level reinforcement-learning state describes the relative geometry and velocity between the ego vehicle and the front and rear vehicles of the selected gap. The state is defined as follows. Here \(F\) and \(R\) denote the front and rear vehicles of the selected gap. 
-
-
-
-{\small
-\begin{equation}
-\begin{aligned}
-s_t &= \begin{bmatrix}
-\Delta x_F & \Delta y_F & \Delta v_F^x & \Delta v_F^y &
-\Delta x_R & \Delta y_R & \Delta v_R^x & \Delta v_R^y
-\end{bmatrix}^{\top},\\
-a_t &= u(t),\qquad u(t)\in[u_{\min},u_{\max}].
-\end{aligned}
-\end{equation}
-}
-
-
-
-
-
-The policy output is the low-level attention:
-
-
-
-
-
-The reward function is designed to encourage timely merging, discourage hesitation, penalize oscillatory motion, and strongly penalize collision. A representative per-step reward is
-
-
-
-{\small
-\begin{equation}
-\begin{aligned}
-r_t
-=&
-w_p\,\Delta P_t
-+w_o\,O_t\max(\Delta P_t,0)
--w_h\,O_t(1-P_t)
--w_s(1-P_t) \\
-&
--w_a\lVert a_t-a_{t-1}\rVert_2^2
--w_f\,\mathbb{I}\!\left[v_y(t)v_y(t-1)<0\right] \\
-&
--w_c
-\left[
-\max\left(0,\frac{d_{\mathrm{safe}}-d_{\min}(t)}{d_{\mathrm{safe}}}\right)
-\right]^2
--1000\,\mathbb{I}_{\mathrm{collision}}
-+R_{\mathrm{success}}(t)\,\mathbb{I}_{\mathrm{success}} .
-\end{aligned}
-\end{equation}
-}
-
-
-
-
-
-Lane-changing progress is defined as the normalized ratio:
-
-
-
-{\small
-\begin{equation}
-P_t =
-\mathrm{clip}
-\left(
-\frac{y_e(t)-y_O}{y_T-y_O},
-0,
-1
-\right),
-\qquad
-\Delta P_t=P_t-P_{t-1}.
-\end{equation}
-}
-
-
-
-
-
-The opportunity term \(O_t\) represents whether the selected gap is currently suitable for merging. The progress terms reward moving toward the target lane, especially when a useful opportunity exists. The hesitation terms penalize remaining far from the target lane, so the policy cannot receive a high score by simply waiting. The action-smoothness and direction-flip terms reduce repeated acceleration or lateral-direction reversals. The safety term is continuous before collision, while the collision term is a large terminal penalty. The success bonus is implemented as a time-decreasing term \(R_{\mathrm{success}}(t)=100-2t\).
-
-
-
-\begin{table}[!htbp]
-\centering
-\caption{Reward terms and their control meanings}
-\label{tab:reward-terms}
-\footnotesize
-\begin{tabular}{p{0.26\linewidth}p{0.26\linewidth}}
-\toprule
-Reward term & Meaning \\
-\midrule
-\(w_p\Delta P_t\) & Rewards direct lane-change progress \\
-\(w_oO_t\max(\Delta P_t,0)\) & Gives extra reward for moving during a valid opportunity \\
-\(-w_hO_t(1-P_t)\) & Penalizes hesitation when a gap is available \\
-\(-w_s(1-P_t)\) & Applies a general time / inaction penalty \\
-\(-w_a\lVert a_t-a_{t-1}\rVert_2^2\) & Penalizes abrupt action changes \\
-\(-w_f\mathbb{I}[v_y(t)v_y(t-1)<0]\) & Penalizes lateral direction flips \\
-Safety distance penalty & Penalizes near-collision continuously \\
-Collision penalty & Strong terminal penalty \\
-Success bonus & Rewards early safe completion \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-
-\subsubsection{Low-Level Opinion and Target Point}
-
-
-
-
-
-The low-level opinion \(z(t)\) represents the degree of merge commitment for the selected gap. Its continuous dynamics and discrete update are
-
-
-
-{\small
-\begin{equation}
-\begin{aligned}
-\dot{z}(t)&=-d_z z(t)+u(t)\tanh\!\left(\alpha_z z(t)\right)+b(t),\\
-z_{k+1}&=z_k+\Delta t\left[-d_z z_k+u_k\tanh(\alpha_z z_k)+b_k\right].
-\end{aligned}
-\end{equation}
-}
-
-
-
-
-
-
-
-A low or negative \(z(t)\) keeps the desired target point close to the original lane or a cautious reference. A high positive \(z(t)\) moves the target point toward the selected gap in the target lane. To keep this transition bounded, \(z(t)\) is mapped through the smooth gate \(\lambda_z(t)=\mathrm{clip}((z(t)-z_{\min})/(z_{\max}-z_{\min}),0,1)\).
-
-
-
-\subsection{Actual Control Input}
-
-
-
-
-
-The final control layer converts the desired target point into actual vehicle input. This layer consists of three parts: a safety obstacle avoidance item that pushes the ego vehicle away from the nearby target lane vehicles, a tracking error pointing to the desired target point, and a reverse solution of the bicycle model that maps the desired front axle acceleration to longitudinal acceleration and angular rate of change. Through explicit safety constraints and vehicle kinematics expressions, the entire system becomes safer and more interpretable.
-
-
+\subsection{Low-Level Control Design}
 
 \subsubsection{Safety-Avoidance Term}
 
-
-
-
-
-For each surrounding target-lane vehicle \(j\), define the relative vector from that vehicle to the ego front axle as \(\mathbf{r}_j(t)=\mathbf{p}_e(t)-\mathbf{p}_j(t)\), with distance \(d_j(t)=\lVert \mathbf{r}_j(t)\rVert_2\).
-
-
-
-
-
-The safety-avoidance acceleration is constructed as a repulsive field:
-
-
+The low-level controller uses the high-level target while adding a safety-avoidance term inspired by dissipative barrier feedback for embodied opinion-dynamics lane-merging control \cite{R17}. Let \(p_e(t)\in\mathbb{R}^2\) be the ego front-axle position, \(p_j(t)\in\mathbb{R}^2\) be the position of a neighbouring vehicle \(j\), \(r_j(t)=p_e(t)-p_j(t)\) be the relative position vector, and \(d_j(t)=\|r_j(t)\|\) be the Euclidean distance. Let \(R_c\) be the activation distance and \(k_c\) be the avoidance gain. The avoidance vector is
 
 {\small
 \begin{equation}
-\mathbf{u}_c(t) =
-\sum_j
-k_c
-\max\left(0,\frac{d_{\mathrm{safe}}-d_j(t)}{d_{\mathrm{safe}}}\right)^2
-\frac{\mathbf{r}_j(t)}{d_j(t)}.
+u_c(t)=\sum_j
+\mathbb{I}\{d_j(t)<R_c\}\,
+k_c\left(\frac{1}{d_j(t)}-\frac{1}{R_c}\right)
+\frac{r_j(t)}{d_j(t)^3}.
 \end{equation}
 }
 
-
-
-
-
-When all vehicles are farther than \(d_{\mathrm{safe}}\), this term is zero. When a vehicle enters the safety region, the repulsive magnitude grows quadratically as distance decreases. This term does not replace collision checking; instead, it provides a continuous pre-collision correction that can steer the ego vehicle away before a hard collision boundary is reached.
-
-
+The term is zero outside the activation distance and grows rapidly when the ego vehicle approaches another vehicle.
 
 \subsubsection{Target Point and Tracking Error}
 
-
-
-
-
-The selected-gap target point is usually placed near the longitudinal center of the gap and at the target-lane center. The original-lane reference point can be placed ahead of the ego vehicle along the original lane:
-
-
+The target point is interpolated between the original-lane reference and the selected target-lane gap. Let \(L_p\) be the preview distance, \(y_O\) be the original-lane centre, \(y_T\) be the target-lane centre, \(p_O(t)=[x_e(t)+L_p,\;y_O]^\top\) be the original-lane preview point, and \(p_G(t)=[x_g(t),\;y_T]^\top\) be the selected gap centre in the target lane. The opinion-weighted target is
 
 {\small
 \begin{equation}
-\begin{aligned}
-\mathbf{p}_G^{\star}(t)&=\begin{bmatrix}x_g(t)\\y_T\end{bmatrix},&
-\mathbf{p}_O^{\star}(t)&=\begin{bmatrix}p_e^x(t)+\ell_{\mathrm{look}}\\y_O\end{bmatrix}.
-\end{aligned}
+p_{\mathrm{tar}}(t)=(1-\lambda_z(t))p_O(t)+\lambda_z(t)p_G(t)+u_c(t),
+\qquad
+e_p(t)=p_{\mathrm{tar}}(t)-p_e(t).
 \end{equation}
 }
 
-
-
-
-
-
-
-The opinion-weighted target point and tracking error are:
-
-
-
-{\small
-\begin{equation}
-\begin{aligned}
-\mathbf{p}^{\star}(t)&=\left[1-\lambda_z(t)\right]\mathbf{p}_O^{\star}(t)+\lambda_z(t)\mathbf{p}_G^{\star}(t),\\
-\mathbf{e}_z(t)&=\mathbf{p}^{\star}(t)-\mathbf{p}_e(t).
-\end{aligned}
-\end{equation}
-}
-
-
-
-
-
-
-
-This construction gives the low-level opinion a direct geometric meaning. When \(\lambda_z(t)\) is close to zero, the controller behaves like a lane-keeping controller. When \(\lambda_z(t)\) approaches one, the controller behaves like a gap-entry controller.
-
-
+The vector \(e_p(t)\) is the front-axle tracking error used by the physical controller.
 
 \subsubsection{Final Physical Input Design}
 
-
-
-
-
-The desired front-axle acceleration combines proportional position tracking, velocity damping, and safety avoidance as \(\mathbf{u}_{\mathrm{total}}(t)=k_p\mathbf{e}_z(t)-k_v\mathbf{v}_e^f(t)+\mathbf{u}_c(t)\).
-
-
-
-
-
-This vector is then converted into physical inputs. Let the front-axle velocity direction and its normal direction be
-
-
+The physical controller converts the target error into acceleration and steering-rate commands. Let \(\psi(t)\) be the ego heading. The longitudinal and lateral unit vectors are \(e_\parallel(t)=[\cos\psi(t),\sin\psi(t)]^\top\) and \(e_\perp(t)=[-\sin\psi(t),\cos\psi(t)]^\top\). Let \(v_{\mathrm{tar}}(t)\) be the target velocity, \(k_a\), \(k_x\), and \(k_\omega\) be tracking gains, \(a_{\min}\) and \(a_{\max}\) be acceleration limits, and \(\omega_{\min}\) and \(\omega_{\max}\) be steering-rate limits. The commanded acceleration \(a(t)\) and steering-rate command \(\omega(t)\) are
 
 {\small
 \begin{equation}
 \begin{aligned}
-\mathbf{t}_e(t)&=\frac{\mathbf{v}_e^f(t)}{\lVert\mathbf{v}_e^f(t)\rVert_2+\epsilon},&
-\mathbf{n}_e(t)&=\begin{bmatrix}-t_e^y(t)\\t_e^x(t)\end{bmatrix},\\
-a(t)&=\mathrm{clip}\left(\mathbf{u}_{\mathrm{total}}(t)^\top\mathbf{t}_e(t),a_{\min},a_{\max}\right),\\
-\omega(t)&=\mathrm{clip}\left(k_{\omega}\,\mathbf{u}_{\mathrm{total}}(t)^\top\mathbf{n}_e(t),\omega_{\min},\omega_{\max}\right).
+a(t)&=\mathrm{clip}\!\left(k_a(v_{\mathrm{tar}}(t)-v_e(t))+k_x e_p(t)^\top e_\parallel(t),a_{\min},a_{\max}\right),\\
+\omega(t)&=\mathrm{clip}\!\left(k_\omega e_p(t)^\top e_\perp(t),\omega_{\min},\omega_{\max}\right).
 \end{aligned}
 \end{equation}
 }
 
-This PID-like structure provides a clear and stable mapping from the opinion-driven target point to the executable vehicle input, while avoiding unrealistic acceleration and steering changes through input clipping.
-
-
+This final stage is deliberately separated from the high-level opinions. The opinion variables decide which gap to use and how strongly to merge, while the low-level controller executes the motion subject to tracking and safety constraints.
 
 \section{Experimental Design}
 
@@ -660,7 +320,7 @@ This PID-like structure provides a clear and stable mapping from the opinion-dri
 
 
 
-The experiments are organized from simple to complex. The single gap environment isolated the low-level control problem: testing the learning effect of RL when the target gap is fixed, and whether the controller can learn when to increase attention and commit to merging. The multi-gap environment introduced high-level decisions: when multiple dynamic gaps exist simultaneously, whether the system can select the appropriate local gap to avoid excessive switching and safely execute merging. The experimental parameters are listed in the appendix.
+The experiments are organized from simple to complex. The single-gap environment isolates the lateral attention and merge-commitment problem: it tests whether RL can learn when to increase attention and commit to merging when the target gap is fixed. The multi-gap environment introduces longitudinal high-level decisions: when several dynamic gaps exist simultaneously, it tests whether the system can select an appropriate local gap, avoid excessive switching, and safely execute merging. The experimental parameters are listed in the appendix.
 
 
 
@@ -682,7 +342,7 @@ The ego vehicle has the same initial longitudinal speed but a randomized longitu
 
 
 
-The rear vehicle is deliberately designed to create a staged merging opportunity. Before \(t_y=20.0\,\mathrm{s}\), the rear vehicle follows a sinusoidal acceleration law.
+The rear vehicle is deliberately designed to create a staged merging opportunity. Before \(t_y=20.0\,\mathrm{s}\), it follows a sinusoidal law with period \(P_s=6.0\,\mathrm{s}\), velocity-amplitude parameter \(A_s=4.0\,\mathrm{m/s}\), angular frequency \(\omega_s=2\pi/P_s\), and front-rear gap \(g(t)=x_F(t)-x_R(t)\).
 
 
 
@@ -699,7 +359,7 @@ g(t)&=x_F(t)-x_R(t)=15.0-\frac{A_s}{\omega_s}\left[1-\cos(\omega_s t)\right],\qu
 }
 
 
-After \(20.0\,\mathrm{s}\), the rear vehicle starts yielding by tracking a desired front-rear gap \(g_{\mathrm{yield}}=20.0\,\mathrm{m}\). The rear-vehicle acceleration becomes:
+After \(20.0\,\mathrm{s}\), the rear vehicle starts yielding by tracking a desired front-rear gap \(g_{\mathrm{yield}}=20.0\,\mathrm{m}\). The acceleration law uses proportional and damping gains \(0.35\) and \(1.1\), with acceleration clipped to \([-5.0,2.0]\,\mathrm{m/s^2}\). The rear-vehicle acceleration becomes:
 
 
 
@@ -719,7 +379,7 @@ This piecewise construction has a clear purpose. Before \(20.0\,\mathrm{s}\), th
 
 
 
-The SAC agent uses a Gaussian policy with two hidden layers of width \(256\), two Q networks, target Q networks, replay-buffer learning, and entropy regularization. The main training parameters are \(200\) episodes, replay-buffer size \(2.0\times10^5\), batch size \(256\), \(1000\) initial random steps, discount factor \(\gamma=0.99\), target-update rate \(\tau=0.005\), and learning rates \(3\times10^{-4}\) for the policy, Q networks, and entropy temperature. The subsequent value comparison is also carried out using the same "reward" as defined in the previous text. The same reward definition is used during value comparison so that the learned and hand-designed policies are judged by an identical metric. The baseline comparison evaluates the trained SAC attention against the original hand-designed RBF attention:
+The SAC agent uses a Gaussian policy with two hidden layers of width \(256\), two Q networks, target Q networks, replay-buffer learning, and entropy regularization. The main training parameters are \(200\) episodes, replay-buffer size \(2.0\times10^5\), batch size \(256\), \(1000\) initial random steps, discount factor \(\gamma=0.99\), target-update rate \(\tau=0.005\), and learning rates \(3\times10^{-4}\) for the policy, Q networks, and entropy temperature. The subsequent value comparison uses the same reward as defined above so that the learned and hand-designed policies are judged by an identical metric. In the radial-basis-function baseline, \(u_{\mathrm{base}}\) is the base attention, \(u_{\mathrm{amp}}\) is the attention amplitude, and \(\sigma_d\) and \(\sigma_v\) are the same position and velocity bandwidths used for gap confidence. The baseline comparison evaluates the trained SAC attention against
 
 
 
@@ -785,7 +445,7 @@ The four target-lane gaps are randomly adjusted over time. Every \(T_g=4.0\,\mat
 
 
 
-The leading target vehicle has zero acceleration. Each following target vehicle tracks the desired gap in front of it through a clipped proportional-derivative rule:
+The leading target vehicle has zero acceleration. For each following vehicle \(i+1\), let \(g_i(t)\) be its current gap to vehicle \(i\), \(g_{i,\mathrm{des}}^{(k)}\) be the desired gap during adjustment interval \(k\), and \(\dot{g}_i(t)\) be the gap-rate term. With proportional and damping gains \(0.55\) and \(1.05\), each following target vehicle tracks the desired gap through a clipped proportional-derivative rule:
 
 
 
@@ -865,7 +525,7 @@ The SAC policy achieves a higher average episodic reward than the RBF baseline, 
 
 
 
-In terms of safety indicators, the RBF baseline maintained a larger minimum distance ($d_{\min} \approx 9.7$ m), reflecting its inherent conservatism. The SAC strategy is closer to the obstacle ($d_{\min} \approx 2.6$ m), but always remains outside the collision radius, proving that the learned strategy can effectively balance time efficiency and collision safety through an optimized reward structure.
+In terms of safety indicators, the RBF baseline maintained a larger minimum distance ($d_{\min} \approx 9.7$ m), reflecting its inherent conservatism. The SAC attention policy is closer to the obstacle ($d_{\min} \approx 2.6$ m), but always remains outside the collision radius, showing that the learned attention can balance time efficiency and collision safety through the reward structure.
 
 
 
@@ -906,7 +566,7 @@ Metric & SAC Policy & RBF Baseline & Improvement \\
 
 
 
-The low-level SAC strategy was trained in a single-gap environment and then directly deployed to a dynamic multi-gap scenario. The experimental results show that it has good generalization ability in terms of safety and task completion: the success rate remains at a high level (\(\approx\)0.97). Even if the high-level selector switches, in the vast majority of cases, the low-level strategy never violates the safety boundary. These data confirm that SAC strategy generalizes beyond the training environment.
+The lateral SAC attention policy was trained in a single-gap environment and then directly deployed to a dynamic multi-gap scenario. The experimental results show that it has good generalization ability in terms of safety and task completion: the success rate remains at a high level (\(\approx\)0.97). Even if the high-level selector switches, in the vast majority of cases, the lateral attention policy never violates the safety boundary. These data confirm that the learned attention policy generalizes beyond the training environment.
 
 
 
@@ -931,7 +591,7 @@ Some difficult cases still produce low reward or failure. These cases mainly ari
 
 
 
-The opinion-dynamics selector achieves a higher mean reward than the max-score selector (+55.3\%) and switches less often (0.61 versus 0.76). Although max-score sometimes finishes faster, its lower reward indicates larger safety penalties and less smooth control. The opinion-based selector therefore provides more temporally consistent guidance. And it is more stable and comfortable, despite a slightly lower success rate caused by timeout cases.
+The opinion-dynamics selector achieves a higher mean reward than the max-score selector (+55.3\%) and switches less often (0.61 versus 0.76). Although max-score sometimes finishes faster, its lower reward indicates larger safety penalties and less smooth control. The opinion-based selector therefore provides more temporally consistent guidance and more stable behaviour, despite a slightly lower success rate caused by timeout cases.
 
 
 
@@ -956,15 +616,9 @@ Metric & Opinion Strategy & Max Strategy & Improvement \\
 
 \section{Conclusions}
 
+The proposed two-layer framework provides an interpretable method for autonomous lane merging. The high-level decision-making layer uses longitudinal opinion dynamics to select a local candidate gap and lateral opinion dynamics to decide the strength of merging commitment. The low-level control layer then converts this high-level decision into collision-aware target tracking and physical vehicle inputs. This revised structure separates strategic decision formation from execution, while preserving a continuous opinion-dynamics formulation throughout the system.
 
-
-
-
-The two-layer opinion-dynamics framework provides an interpretable method for autonomous lane merging. The upper layer selects a local candidate gap by smoothing the confidence difference with self-updating attention, while the lower layer converts the selected gap into objective bias, learned or analytic attention, opinion-driven target interpolation, and safety-aware tracking control.
-
-
-
-Experiments show that the SAC lower-level strategy trained in the single-gap scenario converges stably and outperforms the hand-designed RBF controller, mainly by improving efficiency while remaining collision-free. In multi-gap deployment, the same policy maintains a high success rate, showing partial generalization, but timeout failures and conservative local optima reveal limited adaptability to dynamic switching. This limitation is linked to the absence of temporal context in the state and the lower layer's inability to observe high-level switching or gap infeasibility. The ablation further shows that the opinion-based high-level selector achieves higher reward and fewer switches than the max-score baseline, confirming the value of temporally smoothed upper-layer guidance.
+Experiments show that the SAC-trained lateral attention policy in the single-gap environment converges to a stable behaviour and outperforms the hand-designed RBF attention baseline, mainly by reducing completion time while remaining collision-free. In the multi-gap environment, the same policy maintains a high success rate, indicating that the learned attention has partial generalization beyond the training scenario. The remaining failures mainly occur in difficult cases with repeated gap switching or excessive waiting, which suggests that future work should include temporal state information and stronger communication between longitudinal selection and lateral commitment. The ablation study further shows that the opinion-based high-level selector achieves higher reward and fewer switches than the max-score selector, confirming the value of temporally smoothed opinion dynamics for interactive lane-changing decisions.
 
 \clearpage
 \printbibliography[title={References},heading=bibintoc]
@@ -1097,8 +751,8 @@ High-level opinion & \(d_y,\alpha_y\) & \(2.5,10.0\) & High-level damping and se
 High-level attention & \(\tau_h,U_{\max},K_h,n\) & \(1.0,1.5,0.2,2.0\) & Self-updating attention parameters \\
 High-level decision & \(\theta_y\) & \(0.18\) & Waiting-band decision threshold \\
 Multi-gap confidence & \(\sigma_d,\sigma_v\) & \(4.0,2.5\) & Confidence bandwidths for local gap comparison \\
-Low-level opinion & \(g_{\mathrm{safe}},k_g,k_v\) & \(5.0\,\mathrm{m},0.2,0.1\) & Gap-bias parameters in multi-gap execution \\
-Low-level opinion & \(d_z,\alpha_z\) & \(2.0,2.0\) & Low-level opinion damping and sensitivity \\
+Lateral opinion & \(g_{\mathrm{safe}},k_g,k_v\) & \(5.0\,\mathrm{m},0.2,0.1\) & Gap-bias parameters in multi-gap execution \\
+Lateral opinion & \(d_z,\alpha_z\) & \(2.0,2.0\) & Lateral opinion damping and sensitivity \\
 Multi-gap evaluation & \(N_{\mathrm{test}}\) & \(100\) & Random repeated test runs \\
 Physical input & \(a\) clip & \([-5.0,5.0]\,\mathrm{m / s^2}\) & Ego acceleration bounds \\
 Physical input & \(\omega\) clip & \([-0.8,0.8]\,\mathrm{rad / s}\) & Ego steering-rate bounds \\
